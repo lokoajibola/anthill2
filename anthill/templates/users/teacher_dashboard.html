@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}Teacher Dashboard - {{ school.name }}{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'users:teacher_dashboard' %}">Teacher Dashboard</a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="#">My Subjects</a>
+            <a class="nav-link" href="#">My Students</a>
+            <a class="nav-link" href="{% url 'users:login' %}">Logout</a>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    {% if teacher.user.profile_picture %}
+                    <img src="{{ teacher.user.profile_picture.url }}" class="rounded-circle mb-3" style="width: 100px; height: 100px; object-fit: cover;">
+                    {% else %}
+                    <div class="rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center mb-3" style="width: 100px; height: 100px;">
+                        <span class="text-white">{{ teacher.user.get_full_name|make_list|first }}</span>
+                    </div>
+                    {% endif %}
+                    <h5>{{ teacher.user.get_full_name }}</h5>
+                    <p class="text-muted">Teacher</p>
+                    <p class="text-muted">{{ school.name }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h5>Subjects</h5>
+                            <h2>{{ teacher.subjects.count }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <h5>Students</h5>
+                            <h2>0</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <h5>Classes</h5>
+                            <h2>0</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <a href="#" class="btn btn-outline-primary w-100 mb-2">Upload Scores</a>
+                            <a href="#" class="btn btn-outline-success w-100 mb-2">View Students</a>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="#" class="btn btn-outline-info w-100 mb-2">Manage Assignments</a>
+                            <a href="#" class="btn btn-outline-warning w-100 mb-2">Edit Profile</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

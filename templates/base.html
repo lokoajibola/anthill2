@@ -1,0 +1,85 @@
+{% load user_tags %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Anthill - School Management{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% csrf_token %} 
+    {% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'homepage' %}">Anthill</a>
+        <div class="navbar-nav ms-auto">
+            {% if user.is_authenticated %}
+                <span class="navbar-text me-3">
+                    Welcome, {{ user.username }} ({{ user.get_user_type_display }})
+                </span>
+                
+                {% if user.user_type == 'super_admin' %}
+                    <!-- Super Admin Links -->
+                    <a class="nav-link" href="/admin/">Admin Panel</a>
+                    <a class="nav-link" href="{% url 'schools:admin_analytics' %}">Analytics</a>
+                    <a class="nav-link" href="{% url 'schools:search' %}">Search</a>
+                    
+                {% elif user.user_type == 'senior_admin' or user.user_type == 'junior_admin' %}
+                    <!-- School Admin Links -->
+                    <a class="nav-link" href="{% url 'schools:dashboard' %}">Dashboard</a>
+                    <a class="nav-link" href="{% url 'schools:manage_users' %}">Manage Users</a>
+                    <a class="nav-link" href="{% url 'schools:search' %}">Search</a>
+                    <a class="nav-link" href="{% url 'schools:analytics' %}">Analytics</a>
+                    
+                    {% if user.user_type == 'senior_admin' %}
+                    <a class="nav-link" href="{% url 'schools:payment_history' %}">Payments</a>
+                    <a class="nav-link" href="{% url 'schools:edit_homepage' %}">School Info</a>
+                    {% endif %}
+                    
+                {% elif user.user_type == 'teacher' %}
+                    <!-- Teacher Links -->
+                    <a class="nav-link" href="{% url 'users:teacher_dashboard' %}">Dashboard</a>
+                    <a class="nav-link" href="{% url 'academic:teacher_subjects' %}">Subjects</a>
+                    <a class="nav-link" href="{% url 'academic:teacher_assignments' %}">Assignments</a>
+                    <a class="nav-link" href="{% url 'academic:upload_scores' %}">Upload Scores</a>
+                    
+                {% elif user.user_type == 'student' %}
+                    <!-- Student Links -->
+                    <a class="nav-link" href="{% url 'users:student_dashboard' %}">Dashboard</a>
+                    <a class="nav-link" href="{% url 'academic:student_assignments' %}">Assignments</a>
+                    <a class="nav-link" href="{% url 'academic:student_results' %}">Results</a>
+                    <a class="nav-link" href="{% url 'academic:student_fees' %}">Fees</a>
+                {% endif %}
+                
+                <a class="nav-link" href="{% url 'users:logout' %}">Logout</a>
+            {% else %}
+                <a class="nav-link" href="{% url 'users:register' %}">Register</a>
+                <a class="nav-link" href="{% url 'users:login' %}">Login</a>
+                <a class="nav-link" href="{% url 'contact_us' %}">Contact Us</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+    {% if messages %}
+    <div class="container mt-3">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% block content %}
+    {% endblock %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

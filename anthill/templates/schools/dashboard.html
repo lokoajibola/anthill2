@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ school.name }} Dashboard - Anthill{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'schools:dashboard' %}">{{ school.name }} Dashboard</a>
+        <div class="navbar-nav ms-auto">
+            {% if is_senior_admin %}
+            <a class="nav-link" href="{% url 'schools:manage_users' %}">Manage Users</a>
+            <a class="nav-link" href="{% url 'schools:search' %}">Search</a>
+            {% endif %}
+            <a class="nav-link" href="{% url 'schools:edit_homepage' %}">Edit School Info</a>
+            <a class="nav-link" href="{% url 'users:login' %}">Logout</a>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5>School Logo</h5>
+                    {% if school.logo %}
+                    <img src="{{ school.logo.url }}" alt="{{ school.name }}" class="img-fluid mb-3" style="max-height: 100px;">
+                    {% else %}
+                    <div class="bg-secondary text-white p-3 mb-3">
+                        No Logo
+                    </div>
+                    {% endif %}
+                    <h6>{{ school.name }}</h6>
+                    <p class="text-muted">{{ school.motto|default:"School Motto" }}</p>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        {% if is_senior_admin %}
+                        <li><a href="{% url 'schools:manage_users' %}" class="text-decoration-none">Create Users</a></li>
+                        <li><a href="#" class="text-decoration-none">View Analytics</a></li>
+                        <li><a href="#" class="text-decoration-none">Fee Management</a></li>
+                        {% endif %}
+                        <li><a href="{% url 'schools:edit_homepage' %}" class="text-decoration-none">Edit School Info</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card text-white bg-primary">
+                        <div class="card-body">
+                            <h5>Teachers</h5>
+                            <h2>{{ teachers_count }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-white bg-success">
+                        <div class="card-body">
+                            <h5>Students</h5>
+                            <h2>{{ students_count }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-white bg-warning">
+                        <div class="card-body">
+                            <h5>Admins</h5>
+                            <h2>{{ junior_admins_count|add:1 }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">School Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Type:</strong> {{ school.get_school_type_display }}</p>
+                            <p><strong>Subscription:</strong> {{ school.get_subscription_type_display }}</p>
+                            <p><strong>Phone:</strong> {{ school.phone }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Email:</strong> {{ school.email }}</p>
+                            <p><strong>Address:</strong> {{ school.address|linebreaks }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

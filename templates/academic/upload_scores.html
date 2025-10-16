@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload Scores - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Upload Student Scores</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Select Student *</label>
+                                    <select name="student" class="form-control" required>
+                                        <option value="">Choose a student...</option>
+                                        {% for student in students %}
+                                        <option value="{{ student.id }}">{{ student.user.get_full_name }} - {{ student.admission_number }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Select Subject *</label>
+                                    <select name="subject" class="form-control" required>
+                                        <option value="">Choose a subject...</option>
+                                        {% for subject in subjects %}
+                                        <option value="{{ subject.id }}">{{ subject.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Exam Type *</label>
+                                    <select name="exam_type" class="form-control" required>
+                                        <option value="">Select type...</option>
+                                        <option value="test">Test</option>
+                                        <option value="assignment">Assignment</option>
+                                        <option value="exam">Exam</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Score *</label>
+                                    <input type="number" name="score" class="form-control" min="0" max="100" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">Max Score</label>
+                                    <input type="number" name="max_score" class="form-control" value="100" min="1" max="1000">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Date Taken *</label>
+                            <input type="date" name="date_taken" class="form-control" required>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Upload Score</button>
+                        </div>
+                    </form>
+
+                    {% if students %}
+                    <div class="mt-4">
+                        <h5>Recent Score Uploads</h5>
+                        <div class="alert alert-info">
+                            <p class="mb-0">No recent score uploads. Scores will appear here after you upload them.</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

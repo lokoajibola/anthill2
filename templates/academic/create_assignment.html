@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Assignment - {{ school.name }}{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'users:teacher_dashboard' %}">Teacher Dashboard</a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="{% url 'academic:teacher_assignments' %}">Back to Assignments</a>
+            <a class="nav-link" href="{% url 'users:logout' %}">Logout</a>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Create New Assignment</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Assignment Title *</label>
+                            <input type="text" name="title" class="form-control" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea name="description" class="form-control" rows="4"></textarea>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Subject *</label>
+                                    <select name="subject" class="form-control" required>
+                                        <option value="">Select Subject</option>
+                                        {% for subject in subjects %}
+                                        <option value="{{ subject.id }}">{{ subject.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Due Date *</label>
+                                    <input type="datetime-local" name="due_date" class="form-control" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Maximum Score</label>
+                            <input type="number" name="max_score" class="form-control" value="100" min="1" max="1000">
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100">Create Assignment</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}Payment History - {{ school.name }}{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'schools:dashboard' %}">{{ school.name }}</a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="{% url 'schools:dashboard' %}">Dashboard</a>
+            {% if is_senior_admin %}
+            <a class="nav-link" href="{% url 'schools:upgrade_subscription' %}">Upgrade</a>
+            {% endif %}
+            <a class="nav-link" href="{% url 'users:logout' %}">Logout</a>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Payment History</h4>
+                </div>
+                <div class="card-body">
+                    {% if payments %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Description</th>
+                                    <th>Status</th>
+                                    <th>Due Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in payments %}
+                                <tr>
+                                    <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                                    <td>${{ payment.amount }}</td>
+                                    <td>{{ payment.description|default:"Subscription Payment" }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if payment.status == 'completed' %}success{% elif payment.status == 'pending' %}warning{% else %}danger{% endif %}">
+                                            {{ payment.status|title }}
+                                        </span>
+                                    </td>
+                                    <td>{{ payment.due_date|date:"M d, Y" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <p>No payment history found.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Subscription Info</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Current Plan:</strong> {{ school.get_subscription_type_display }}</p>
+                    <p><strong>Status:</strong> 
+                        <span class="badge bg-{% if subscription.is_active %}success{% else %}danger{% endif %}">
+                            {{ subscription.is_active|yesno:"Active,Inactive" }}
+                        </span>
+                    </p>
+                    <p><strong>Start Date:</strong> {{ subscription.start_date|date:"M d, Y" }}</p>
+                    <p><strong>End Date:</strong> {{ subscription.end_date|date:"M d, Y" }}</p>
+                    <p><strong>Days Remaining:</strong> 
+                        <span class="{% if subscription.days_remaining < 30 %}text-danger{% else %}text-success{% endif %}">
+                            {{ subscription.days_remaining }}
+                        </span>
+                    </p>
+                    <p><strong>Auto Renew:</strong> {{ subscription.auto_renew|yesno:"Yes,No" }}</p>
+                    
+                    {% if is_senior_admin %}
+                    <a href="{% url 'schools:upgrade_subscription' %}" class="btn btn-primary w-100 mt-3">
+                        Upgrade Subscription
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

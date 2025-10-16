@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}Anthill - School Management Service{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="text-center mb-5">
+        <h1 class="display-4">Anthill School Management</h1>
+        <p class="lead">Streamline your school administration with our comprehensive management platform</p>
+    </div>
+
+    <div class="row">
+        {% for plan in plans %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header text-center">
+                    <h4 class="my-0 font-weight-normal">{{ plan.name }}</h4>
+                </div>
+                <div class="card-body">
+                    <h1 class="card-title pricing-card-title">{{ plan.price }}</h1>
+                    <ul class="list-unstyled mt-3 mb-4">
+                        {% for feature in plan.features %}
+                        <li>{{ feature }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}School Analytics - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">School Analytics - {{ school.name }}</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Stats Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card text-white bg-primary">
+                                <div class="card-body text-center">
+                                    <h5>Teachers</h5>
+                                    <h2>{{ teachers_count }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-white bg-success">
+                                <div class="card-body text-center">
+                                    <h5>Students</h5>
+                                    <h2>{{ students_count }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-white bg-info">
+                                <div class="card-body text-center">
+                                    <h5>Total Users</h5>
+                                    <h2>{{ teachers_count|add:students_count }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Class Distribution -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Class Distribution</h5>
+                                </div>
+                                <div class="card-body">
+                                    {% if class_distribution %}
+                                        {% for class_data in class_distribution %}
+                                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                                            <span>{{ class_data.class_level__name|default:"Not Assigned" }}</span>
+                                            <span class="badge bg-primary">{{ class_data.count }} students</span>
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <p class="text-muted">No class distribution data available.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Recent Activity</h5>
+                                </div>
+                                <div class="card-body">
+                                    {% if recent_assignments %}
+                                        {% for assignment in recent_assignments %}
+                                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                                            <div>
+                                                <h6 class="mb-0">{{ assignment.title }}</h6>
+                                                <small class="text-muted">{{ assignment.subject.name }}</small>
+                                            </div>
+                                            <small>{{ assignment.created_at|date:"M d" }}</small>
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <p class="text-muted">No recent activity.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- School Information -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">School Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>School Type:</strong> {{ school.get_school_type_display }}</p>
+                                    <p><strong>Subscription:</strong> {{ school.get_subscription_type_display }}</p>
+                                    <p><strong>Phone:</strong> {{ school.phone }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Email:</strong> {{ school.email }}</p>
+                                    <p><strong>Students per Teacher:</strong> 
+                                        {% if teachers_count > 0 %}
+                                            {{ students_count|floatformat:1 }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </p>
+                                    <p><strong>Registration Date:</strong> {{ school.created_at|date:"M d, Y" }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+
+{% block title %}School Registration - Anthill{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">School Registration</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Display form errors -->
+                        {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <strong>Please correct the following errors:</strong>
+                            <ul>
+                                {% for field, errors in form.errors.items %}
+                                    {% for error in errors %}
+                                        <li>{{ field }}: {{ error }}</li>
+                                    {% endfor %}
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+
+                        <!-- Display messages -->
+                        {% if messages %}
+                        <div class="mb-3">
+                            {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <h5 class="mb-3">School Information</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">School Name *</label>
+                                    <input type="text" name="school_name" class="form-control" value="{{ form.school_name.value|default:'' }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">School Logo</label>
+                                    <input type="file" name="school_logo" class="form-control" accept="image/*">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">School Motto</label>
+                            <input type="text" name="school_motto" class="form-control" value="{{ form.school_motto.value|default:'' }}">
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">School Type *</label>
+                                    <select name="school_type" class="form-control" required>
+                                        <option value="">Select School Type</option>
+                                        <option value="primary" {% if form.school_type.value == "primary" %}selected{% endif %}>Primary School</option>
+                                        <option value="secondary" {% if form.school_type.value == "secondary" %}selected{% endif %}>Secondary School</option>
+                                        <option value="combined" {% if form.school_type.value == "combined" %}selected{% endif %}>Combined School</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Subscription Type *</label>
+                                    <select name="subscription_type" class="form-control" required>
+                                        <option value="">Select Subscription</option>
+                                        <option value="basic" {% if form.subscription_type.value == "basic" %}selected{% endif %}>Basic</option>
+                                        <option value="pro" {% if form.subscription_type.value == "pro" %}selected{% endif %}>Pro</option>
+                                        <option value="enterprise" {% if form.subscription_type.value == "enterprise" %}selected{% endif %}>Enterprise</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">School Vision</label>
+                            <textarea name="school_vision" class="form-control" rows="3">{{ form.school_vision.value|default:'' }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">School Mission</label>
+                            <textarea name="school_mission" class="form-control" rows="3">{{ form.school_mission.value|default:'' }}</textarea>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">School Phone *</label>
+                                    <input type="text" name="school_phone" class="form-control" value="{{ form.school_phone.value|default:'' }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">School Email *</label>
+                                    <input type="email" name="school_email" class="form-control" value="{{ form.school_email.value|default:'' }}" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">School Address *</label>
+                            <textarea name="school_address" class="form-control" rows="3" required>{{ form.school_address.value|default:'' }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Primary Color</label>
+                            <input type="color" name="school_primary_color" class="form-control form-control-color" value="{{ form.school_primary_color.value|default:'#000000' }}">
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <h5 class="mb-3">Admin Information</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">First Name *</label>
+                                    <input type="text" name="first_name" class="form-control" value="{{ form.first_name.value|default:'' }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Last Name *</label>
+                                    <input type="text" name="last_name" class="form-control" value="{{ form.last_name.value|default:'' }}" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Admin Email *</label>
+                                    <input type="email" name="email" class="form-control" value="{{ form.email.value|default:'' }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Admin Phone *</label>
+                                    <input type="text" name="phone" class="form-control" value="{{ form.phone.value|default:'' }}" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Username *</label>
+                                    <input type="text" name="username" class="form-control" value="{{ form.username.value|default:'' }}" required>
+                                    <small class="form-text text-muted">Choose a unique username for login</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Profile Picture</label>
+                                    <input type="file" name="profile_picture" class="form-control" accept="image/*">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Password *</label>
+                                    <input type="password" name="password1" class="form-control" required>
+                                    <small class="form-text text-muted">Minimum 8 characters</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Confirm Password *</label>
+                                    <input type="password" name="password2" class="form-control" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100">Register School</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

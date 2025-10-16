@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block title %}My Results - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">My Academic Results</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Overall Performance -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5>Overall Average</h5>
+                                    <h2 class="text-primary">{{ average_percentage|floatformat:1 }}%</h2>
+                                    <small class="text-muted">Based on all recorded scores</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5>Total Results</h5>
+                                    <h2 class="text-success">{{ results.count }}</h2>
+                                    <small class="text-muted">Exams, tests, and assignments</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if results %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th>Exam Type</th>
+                                    <th>Score</th>
+                                    <th>Percentage</th>
+                                    <th>Date</th>
+                                    <th>Recorded By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for result in results %}
+                                <tr>
+                                    <td>{{ result.subject.name }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if result.exam_type == 'exam' %}danger{% elif result.exam_type == 'test' %}warning{% else %}info{% endif %}">
+                                            {{ result.get_exam_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ result.score }}/{{ result.max_score }}</td>
+                                    <td>
+                                        <span class="{% if result.score >= result.max_score|multiply:0.7 %}text-success{% elif result.score >= result.max_score|multiply:0.5 %}text-warning{% else %}text-danger{% endif %}">
+                                            {{ result.score|floatformat:0 }}%
+                                        </span>
+                                    </td>
+                                    <td>{{ result.date_taken|date:"M d, Y" }}</td>
+                                    <td>{{ result.recorded_by.user.get_full_name }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info text-center">
+                        <h5>No Results Available</h5>
+                        <p class="mb-0">Your results will appear here once your teachers upload them.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

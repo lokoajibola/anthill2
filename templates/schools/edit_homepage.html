@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit School Info - {{ school.name }}{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'schools:dashboard' %}">{{ school.name }}</a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="{% url 'schools:dashboard' %}">Dashboard</a>
+            <a class="nav-link" href="{% url 'users:logout' %}">Logout</a>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Edit School Information</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">School Name *</label>
+                                    <input type="text" name="name" class="form-control" value="{{ school.name }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">School Logo</label>
+                                    <input type="file" name="logo" class="form-control" accept="image/*">
+                                    {% if school.logo %}
+                                    <small class="text-muted">Current logo: <a href="{{ school.logo.url }}" target="_blank">View</a></small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">School Motto</label>
+                            <input type="text" name="motto" class="form-control" value="{{ school.motto }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">School Vision</label>
+                            <textarea name="vision" class="form-control" rows="3">{{ school.vision }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">School Mission</label>
+                            <textarea name="mission" class="form-control" rows="3">{{ school.mission }}</textarea>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Primary Color</label>
+                                    <input type="color" name="primary_color" class="form-control form-control-color" value="{{ school.primary_color|default:'#000000' }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">School Type</label>
+                                    <input type="text" class="form-control" value="{{ school.get_school_type_display }}" disabled>
+                                    <small class="text-muted">School type cannot be changed after registration</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">School Phone *</label>
+                                    <input type="text" name="phone" class="form-control" value="{{ school.phone }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">School Email *</label>
+                                    <input type="email" name="email" class="form-control" value="{{ school.email }}" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">School Address *</label>
+                            <textarea name="address" class="form-control" rows="3" required>{{ school.address }}</textarea>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Update School Information</button>
+                            <a href="{% url 'schools:school_homepage' school.id %}" class="btn btn-outline-secondary" target="_blank">View Public Homepage</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

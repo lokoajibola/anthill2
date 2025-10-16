@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block title %}My Subjects - {{ school.name }}{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'users:teacher_dashboard' %}">Teacher Dashboard</a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="{% url 'academic:teacher_assignments' %}">Assignments</a>
+            <a class="nav-link" href="{% url 'academic:upload_scores' %}">Upload Scores</a>
+            <a class="nav-link" href="{% url 'users:logout' %}">Logout</a>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">My Subjects</h4>
+                </div>
+                <div class="card-body">
+                    {% if subjects %}
+                    <div class="row">
+                        {% for subject in subjects %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ subject.name }}</h5>
+                                    <p class="card-text">Code: {{ subject.code }}</p>
+                                    <p class="card-text">{{ subject.description|default:"No description" }}</p>
+                                    <a href="#" class="btn btn-primary btn-sm">View Students</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <p>No subjects assigned yet. Please contact your school administrator.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

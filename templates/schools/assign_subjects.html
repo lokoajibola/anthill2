@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Assign Subjects - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Assign Subjects to {{ teacher.user.get_full_name }}</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Select Subjects:</label>
+                            <div class="border p-3" style="max-height: 300px; overflow-y: auto;">
+    {% for subject in subjects %}
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" 
+               name="subjects" value="{{ subject.id }}"
+               id="subject{{ subject.id }}"
+               {% if subject in teacher.teacher.subjects.all %}checked{% endif %}>
+        <label class="form-check-label" for="subject{{ subject.id }}">
+            {{ subject.name }} ({{ subject.code }})
+        </label>
+    </div>
+    {% endfor %}
+</div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Assign Subjects</button>
+                            <a href="{% url 'schools:manage_users' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

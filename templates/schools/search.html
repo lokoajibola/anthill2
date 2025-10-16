@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}Search - {{ school.name }}{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'schools:dashboard' %}">{{ school.name }}</a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="{% url 'schools:dashboard' %}">Dashboard</a>
+            <a class="nav-link" href="{% url 'users:login' %}">Logout</a>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Search</h4>
+                </div>
+                <div class="card-body">
+                    <form method="get" action="{% url 'schools:search' %}">
+                        <div class="input-group">
+                            <input type="text" name="q" class="form-control" placeholder="Search for teachers, students..." value="{{ query }}">
+                            <button class="btn btn-primary" type="submit">Search</button>
+                        </div>
+                    </form>
+
+                    {% if query %}
+                    <div class="mt-4">
+                        {% if results.schools %}
+                        <h5>Schools ({{ results.schools.count }})</h5>
+                        {% for school in results.schools %}
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <h6>{{ school.name }}</h6>
+                                <p class="mb-1"><strong>Email:</strong> {{ school.email }}</p>
+                                <p class="mb-1"><strong>Phone:</strong> {{ school.phone }}</p>
+                                <p class="mb-0"><strong>Type:</strong> {{ school.get_school_type_display }}</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+
+                        {% if results.teachers %}
+                        <h5>Teachers ({{ results.teachers.count }})</h5>
+                        {% for teacher in results.teachers %}
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <h6>{{ teacher.get_full_name }}</h6>
+                                <p class="mb-1"><strong>Email:</strong> {{ teacher.email }}</p>
+                                <p class="mb-1"><strong>Phone:</strong> {{ teacher.phone }}</p>
+                                <p class="mb-0"><strong>Username:</strong> {{ teacher.username }}</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+
+                        {% if results.students %}
+                        <h5>Students ({{ results.students.count }})</h5>
+                        {% for student in results.students %}
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <h6>{{ student.get_full_name }}</h6>
+                                <p class="mb-1"><strong>Admission No:</strong> {{ student.student.admission_number }}</p>
+                                <p class="mb-1"><strong>Email:</strong> {{ student.email }}</p>
+                                <p class="mb-0"><strong>Username:</strong> {{ student.username }}</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+
+                        {% if not results.schools and not results.teachers and not results.students %}
+                        <div class="alert alert-info mt-3">
+                            No results found for "{{ query }}"
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

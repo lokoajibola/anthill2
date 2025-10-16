@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block title %}My Assignments - {{ school.name }}{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'users:student_dashboard' %}">Student Dashboard</a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="{% url 'academic:student_results' %}">Results</a>
+            <a class="nav-link" href="{% url 'academic:student_fees' %}">Fees</a>
+            <a class="nav-link" href="{% url 'users:logout' %}">Logout</a>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">My Assignments</h4>
+                </div>
+                <div class="card-body">
+                    {% if assignments %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th>Assignment</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                    <th>Score</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for assignment in assignments %}
+                                <tr>
+                                    <td>{{ assignment.assignment.subject.name }}</td>
+                                    <td>{{ assignment.assignment.title }}</td>
+                                    <td>{{ assignment.assignment.due_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        {% if assignment.is_submitted %}
+                                        <span class="badge bg-success">Submitted</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if assignment.score %}
+                                        {{ assignment.score }}/{{ assignment.assignment.max_score }}
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if not assignment.is_submitted %}
+                                        <a href="{% url 'academic:submit_assignment' assignment.id %}" class="btn btn-primary btn-sm">Submit</a>
+                                        {% else %}
+                                        <span class="text-muted">Submitted</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <p>No assignments found.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}Fee Management - {{ school.name }}{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'schools:dashboard' %}">{{ school.name }}</a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="{% url 'schools:dashboard' %}">Dashboard</a>
+            <a class="nav-link" href="{% url 'users:login' %}">Logout</a>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Fee Management</h2>
+        {% if is_senior_admin %}
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createFeeModal">
+            Create Fee Structure
+        </button>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Student Fee Summary</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Admission No</th>
+                            <th>Total Due</th>
+                            <th>Total Paid</th>
+                            <th>Balance</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for summary in fee_summary %}
+                        <tr>
+                            <td>{{ summary.student.user.get_full_name }}</td>
+                            <td>{{ summary.student.admission_number }}</td>
+                            <td>${{ summary.total_due }}</td>
+                            <td>${{ summary.total_paid }}</td>
+                            <td>
+                                <span class="{% if summary.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    ${{ summary.balance }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if summary.balance == 0 %}
+                                <span class="badge bg-success">Paid</span>
+                                {% elif summary.balance == summary.total_due %}
+                                <span class="badge bg-danger">Pending</span>
+                                {% else %}
+                                <span class="badge bg-warning">Partial</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No students found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if is_senior_admin %}
+<!-- Create Fee Structure Modal -->
+<div class="modal fade" id="createFeeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Fee Structure</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'schools:create_fee_structure' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Fee Name</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Amount</label>
+                        <input type="number" name="amount" class="form-control" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Due Date</label>
+                        <input type="date" name="due_date" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

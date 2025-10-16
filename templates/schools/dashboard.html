@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ school.name }} Dashboard - Anthill{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5>School Logo</h5>
+                    {% if school.logo %}
+                    <img src="{{ school.logo.url }}" alt="{{ school.name }}" class="img-fluid mb-3" style="max-height: 100px;">
+                    {% else %}
+                    <div class="bg-secondary text-white p-3 mb-3">
+                        No Logo
+                    </div>
+                    {% endif %}
+                    <h6>{{ school.name }}</h6>
+                    <p class="text-muted">{{ school.motto|default:"School Motto" }}</p>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        {% if is_senior_admin %}
+                        <li><a href="{% url 'schools:manage_users' %}" class="text-decoration-none">👥 Manage Users</a></li>
+                        <li><a href="{% url 'schools:create_user' 'teacher' %}" class="text-decoration-none">➕ Add Teacher</a></li>
+                        <li><a href="{% url 'schools:create_user' 'student' %}" class="text-decoration-none">➕ Add Student</a></li>
+                        <li><a href="{% url 'schools:payment_history' %}" class="text-decoration-none">💰 Payments</a></li>
+                        <li><a href="{% url 'schools:upgrade_subscription' %}" class="text-decoration-none">⚡ Upgrade Plan</a></li>
+                        {% endif %}
+                        <li><a href="{% url 'schools:search' %}" class="text-decoration-none">🔍 Search</a></li>
+                        <li><a href="{% url 'schools:analytics' %}" class="text-decoration-none">📊 Analytics</a></li>
+                        <li><a href="{% url 'schools:edit_homepage' %}" class="text-decoration-none">🏫 Edit School Info</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <!-- Stats Cards -->
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card text-white bg-primary">
+                        <div class="card-body">
+                            <h5>Teachers</h5>
+                            <h2>{{ teachers_count }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-white bg-success">
+                        <div class="card-body">
+                            <h5>Students</h5>
+                            <h2>{{ students_count }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-white bg-warning">
+                        <div class="card-body">
+                            <h5>Admins</h5>
+                            <h2>{{ junior_admins_count|add:1 }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Access Section -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">User Management</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'schools:manage_users' %}" class="btn btn-outline-primary">View All Users</a>
+                                <a href="{% url 'schools:create_user' 'teacher' %}" class="btn btn-outline-success">Add Teacher</a>
+                                <a href="{% url 'schools:create_user' 'student' %}" class="btn btn-outline-info">Add Student</a>
+                                {% if is_senior_admin %}
+                                <a href="{% url 'schools:create_user' 'junior_admin' %}" class="btn btn-outline-warning">Add Junior Admin</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">School Management</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'schools:analytics' %}" class="btn btn-outline-primary">View Analytics</a>
+                                <a href="{% url 'schools:search' %}" class="btn btn-outline-success">Search Database</a>
+                                <a href="{% url 'schools:edit_homepage' %}" class="btn btn-outline-info">Customize School</a>
+                                {% if is_senior_admin %}
+                                <a href="{% url 'schools:payment_history' %}" class="btn btn-outline-warning">Payment History</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- School Information -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">School Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Type:</strong> {{ school.get_school_type_display }}</p>
+                            <p><strong>Subscription:</strong> {{ school.get_subscription_type_display }}</p>
+                            <p><strong>Phone:</strong> {{ school.phone }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Email:</strong> {{ school.email }}</p>
+                            <p><strong>Address:</strong> {{ school.address|linebreaks }}</p>
+                            <p><strong>Public Page:</strong> 
+                                <a href="{% url 'schools:school_homepage' school.id %}" target="_blank">View</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
