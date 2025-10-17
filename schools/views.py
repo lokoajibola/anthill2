@@ -439,12 +439,15 @@ def assign_subjects_to_teacher(request, teacher_id):
         return redirect('schools:manage_users')
     
     teacher = get_object_or_404(Teacher, id=teacher_id, school=school_admin.school)
-    subjects = Subject.objects.filter(school=school_admin.school)
     
-    # Debug print
-    print(f"School: {school_admin.school.name}")
-    print(f"Subjects count: {subjects.count()}")
-    print(f"Teacher: {teacher.user.get_full_name()}")
+    # Get all subjects and group by category
+    subjects = Subject.objects.all().order_by('category', 'name')
+    subject_categories = {}
+    
+    for subject in subjects:
+        if subject.category not in subject_categories:
+            subject_categories[subject.category] = []
+        subject_categories[subject.category].append(subject)
     
     if request.method == 'POST':
         selected_subjects = request.POST.getlist('subjects')
@@ -453,8 +456,8 @@ def assign_subjects_to_teacher(request, teacher_id):
         return redirect('schools:manage_users')
     
     return render(request, 'schools/assign_subjects.html', {
-        'teacher': teacher.user,  # Pass the User object, not Teacher
-        'subjects': subjects,
+        'teacher': teacher.user,
+        'subject_categories': subject_categories,
         'school': school_admin.school
     })
 
@@ -496,7 +499,7 @@ def assign_subjects_to_teacher(request, teacher_id):
         return redirect('schools:manage_users')
     
     teacher = get_object_or_404(Teacher, id=teacher_id, school=school_admin.school)
-    subjects = Subject.objects.filter(school=school_admin.school)
+    subjects = Subject.objects.all()
     
     if request.method == 'POST':
         selected_subjects = request.POST.getlist('subjects')

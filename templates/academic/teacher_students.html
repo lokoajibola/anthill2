@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}My Students - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">My Students</h4>
+                    <div class="d-flex gap-2">
+                        <select class="form-select" onchange="location = this.value;">
+                            <option value="{% url 'academic:teacher_students' %}">All Classes</option>
+                            {% for level in class_levels %}
+                            <option value="{% url 'academic:teacher_students' %}?class_level={{ level.id }}"
+                                    {% if selected_class_level == level.id|stringformat:"i" %}selected{% endif %}>
+                                {{ level.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if students %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Admission No</th>
+                                    <th>Student Name</th>
+                                    <th>Class Level</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in students %}
+                                <tr>
+                                    <td>{{ student.admission_number }}</td>
+                                    <td>{{ student.user.get_full_name }}</td>
+                                    <td>{{ student.class_level.name }}</td>
+                                    <td>{{ student.user.email }}</td>
+                                    <td>{{ student.user.phone }}</td>
+                                    <td>
+                                        <a href="{% url 'academic:upload_scores' %}?student={{ student.id }}" 
+                                           class="btn btn-sm btn-primary">Upload Scores</a>
+                                        <a href="#" class="btn btn-sm btn-outline-info">View Profile</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info text-center">
+                        <h5>No Students Found</h5>
+                        <p class="mb-0">No students match your current filters.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -22,18 +22,20 @@
             </div>
             
             <div class="card mt-3">
-                <div class="card-header">
-                    <h6 class="mb-0">Quick Actions</h6>
-                </div>
-                <div class="card-body">
-                    <ul class="list-unstyled">
-                        <li><a href="{% url 'academic:teacher_subjects' %}" class="text-decoration-none">📚 My Subjects</a></li>
-                        <li><a href="{% url 'academic:teacher_assignments' %}" class="text-decoration-none">📝 Assignments</a></li>
-                        <li><a href="{% url 'academic:create_assignment' %}" class="text-decoration-none">➕ Create Assignment</a></li>
-                        <li><a href="{% url 'academic:upload_scores' %}" class="text-decoration-none">📊 Upload Scores</a></li>
-                    </ul>
-                </div>
-            </div>
+    <div class="card-header">
+        <h6 class="mb-0">Quick Actions</h6>
+    </div>
+    <div class="card-body">
+        <ul class="list-unstyled">
+            <li><a href="{% url 'academic:teacher_subjects' %}" class="text-decoration-none">📚 My Subjects</a></li>
+            <li><a href="{% url 'academic:teacher_students' %}" class="text-decoration-none">👥 My Students</a></li>
+            <li><a href="{% url 'academic:teacher_assignments' %}" class="text-decoration-none">📝 Assignments</a></li>
+            <li><a href="{% url 'academic:create_assignment' %}" class="text-decoration-none">➕ Create Assignment</a></li>
+            <li><a href="{% url 'academic:upload_scores' %}" class="text-decoration-none">📊 Upload Scores</a></li>
+        </ul>
+    </div>
+</div>
+
         </div>
         
         <div class="col-md-9">

@@ -43,6 +43,7 @@
                     <!-- Teacher Links -->
                     <a class="nav-link" href="{% url 'users:teacher_dashboard' %}">Dashboard</a>
                     <a class="nav-link" href="{% url 'academic:teacher_subjects' %}">Subjects</a>
+                    <a class="nav-link" href="{% url 'academic:teacher_students' %}">Students</a>
                     <a class="nav-link" href="{% url 'academic:teacher_assignments' %}">Assignments</a>
                     <a class="nav-link" href="{% url 'academic:upload_scores' %}">Upload Scores</a>
                     
@@ -52,6 +53,7 @@
                     <a class="nav-link" href="{% url 'academic:student_assignments' %}">Assignments</a>
                     <a class="nav-link" href="{% url 'academic:student_results' %}">Results</a>
                     <a class="nav-link" href="{% url 'academic:student_fees' %}">Fees</a>
+                    <a class="nav-link" href="{% url 'users:edit_profile' %}">Profile</a>
                 {% endif %}
                 
                 <a class="nav-link" href="{% url 'users:logout' %}">Logout</a>

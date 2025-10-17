@@ -136,3 +136,33 @@ def student_dashboard(request):
     except Student.DoesNotExist:
         messages.error(request, 'Student profile not found.')
         return redirect('homepage')
+    
+@login_required
+def edit_profile(request):
+    user = request.user
+    
+    if request.method == 'POST':
+        user.first_name = request.POST.get('first_name', user.first_name)
+        user.last_name = request.POST.get('last_name', user.last_name)
+        user.email = request.POST.get('email', user.email)
+        user.phone = request.POST.get('phone', user.phone)
+        
+        if 'profile_picture' in request.FILES:
+            user.profile_picture = request.FILES['profile_picture']
+        
+        # Handle student-specific fields
+        if user.user_type == 'student':
+            student = Student.objects.get(user=user)
+            if request.POST.get('admission_number'):
+                student.admission_number = request.POST.get('admission_number')
+            student.save()
+        
+        user.save()
+        messages.success(request, 'Profile updated successfully!')
+        return redirect('users:edit_profile')
+    
+    context = {'user': user}
+    if user.user_type == 'student':
+        context['student'] = Student.objects.get(user=user)
+    
+    return render(request, 'users/edit_profile.html', context)

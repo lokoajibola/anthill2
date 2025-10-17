@@ -1,9 +1,11 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from .models import Subject, Assignment, StudentAssignment, Result
+from .models import Subject, Assignment, StudentAssignment, Result, ClassLevel
 from django.utils import timezone
 from users.models import Teacher, Student
+# from academic.models import ClassLevel
+
 
 @login_required
 def teacher_subjects(request):
@@ -25,6 +27,28 @@ def teacher_assignments(request):
         'teacher': teacher,
         'assignments': assignments,
         'school': teacher.school
+    })
+
+@login_required
+def teacher_students(request):
+    teacher = get_object_or_404(Teacher, user=request.user)
+    
+    # Get students from the teacher's school
+    students = Student.objects.filter(school=teacher.school).select_related('user', 'class_level')
+    
+    # Filter by class level if provided
+    class_level_filter = request.GET.get('class_level')
+    if class_level_filter:
+        students = students.filter(class_level_id=class_level_filter)
+    
+    class_levels = ClassLevel.objects.filter(school=teacher.school)
+    
+    return render(request, 'academic/teacher_students.html', {
+        'teacher': teacher,
+        'students': students,
+        'class_levels': class_levels,
+        'school': teacher.school,
+        'selected_class_level': class_level_filter
     })
 
 @login_required
@@ -122,7 +146,7 @@ def upload_scores(request):
         max_score = request.POST.get('max_score', 100)
         date_taken = request.POST.get('date_taken')
         
-        student = get_object_or_404(Student, id=student_id)
+        student = get_object_or_404(Student, id=student_id, school=teacher.school)
         subject = get_object_or_404(Subject, id=subject_id)
         
         # Create or update result
@@ -194,7 +218,7 @@ def create_assignment(request):
         due_date = request.POST.get('due_date')
         max_score = request.POST.get('max_score', 100)
         
-        subject = get_object_or_404(Subject, id=subject_id, teacher=teacher)
+        subject = get_object_or_404(Subject, id=subject_id)
         
         assignment = Assignment.objects.create(
             title=title,
@@ -204,6 +228,13 @@ def create_assignment(request):
             due_date=due_date,
             max_score=max_score
         )
+        # Create StudentAssignment records for all students in the school
+        students = Student.objects.filter(school=teacher.school)
+        for student in students:
+            StudentAssignment.objects.create(
+                assignment=assignment,
+                student=student
+            )
         
         messages.success(request, 'Assignment created successfully!')
         return redirect('academic:teacher_assignments')
@@ -211,7 +242,8 @@ def create_assignment(request):
     subjects = teacher.subjects.all()
     return render(request, 'academic/create_assignment.html', {
         'teacher': teacher,
-        'subjects': subjects
+        'subjects': subjects,
+        'school': teacher.school
     })
 @login_required
 def student_assignments(request):

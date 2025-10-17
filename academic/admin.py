@@ -3,9 +3,10 @@ from .models import Subject, ClassLevel, Assignment, StudentAssignment, Result
 
 @admin.register(Subject)
 class SubjectAdmin(admin.ModelAdmin):
-    list_display = ['name', 'code', 'school']
-    list_filter = ['school']
+    list_display = ['name', 'code', 'category']  # Removed 'school'
+    list_filter = ['category']  # Removed 'school'
     search_fields = ['name', 'code']
+    ordering = ['category', 'name']
 
 @admin.register(ClassLevel)
 class ClassLevelAdmin(admin.ModelAdmin):

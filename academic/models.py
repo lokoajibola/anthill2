@@ -6,21 +6,23 @@ class Subject(models.Model):
     name = models.CharField(max_length=100)
     code = models.CharField(max_length=10, unique=True)
     description = models.TextField(blank=True)
-    school = models.ForeignKey(School, on_delete=models.CASCADE)
+    # Remove school foreign key to make subjects global
+    category = models.CharField(max_length=50, blank=True)  # e.g., "Core", "Science", "Arts"
     
     def __str__(self):
         return f"{self.name} ({self.code})"
 
 class ClassLevel(models.Model):
-    name = models.CharField(max_length=50)  # e.g., "Grade 10", "Primary 5"
-    level = models.IntegerField()  # for ordering
+    name = models.CharField(max_length=50)
+    level = models.IntegerField()
     school = models.ForeignKey(School, on_delete=models.CASCADE)
     
     class Meta:
         ordering = ['level']
+        unique_together = ['name', 'school']
     
     def __str__(self):
-        return self.name
+        return f"{self.name} - {self.school.name}"
 
 class Assignment(models.Model):
     title = models.CharField(max_length=200)
