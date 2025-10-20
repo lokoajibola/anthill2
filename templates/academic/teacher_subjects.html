@@ -18,11 +18,16 @@
                             <div class="card">
                                 <div class="card-body">
                                     <h5 class="card-title">{{ subject.name }}</h5>
-                                    <p class="card-text"><strong>Code:</strong> {{ subject.code }}</p>
-                                    <p class="card-text">{{ subject.description|default:"No description available." }}</p>
-                                    <div class="d-grid gap-2">
-                                        <a href="#" class="btn btn-primary btn-sm">View Students</a>
-                                        <a href="{% url 'academic:upload_scores' %}?subject={{ subject.id }}" class="btn btn-success btn-sm">Upload Scores</a>
+                                    <p class="card-text">
+                                        <strong>Code:</strong> {{ subject.code }}<br>
+                                        <strong>Category:</strong> {{ subject.category }}<br>
+                                        <strong>Description:</strong> {{ subject.description|truncatewords:10 }}
+                                    </p>
+                                    <div class="btn-group w-100">
+                                        <a href="{% url 'academic:upload_scores' %}?subject={{ subject.id }}" 
+                                           class="btn btn-primary btn-sm">Upload Scores</a>
+                                        <a href="{% url 'academic:teacher_students' %}" 
+                                           class="btn btn-success btn-sm">View Students</a>
                                     </div>
                                 </div>
                             </div>
@@ -32,7 +37,7 @@
                     {% else %}
                     <div class="alert alert-info">
                         <h5>No Subjects Assigned</h5>
-                        <p class="mb-0">You haven't been assigned to any subjects yet. Please contact your school administrator to get assigned to subjects.</p>
+                        <p class="mb-0">You haven't been assigned to teach any subjects yet.</p>
                     </div>
                     {% endif %}
                 </div>

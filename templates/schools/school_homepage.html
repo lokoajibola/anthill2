@@ -65,6 +65,35 @@
             </div>
         </section>
 
+        <!-- Add to existing template -->
+<section id="gallery" class="my-5">
+    <h2>Gallery</h2>
+    <div class="row">
+        {% for image in school.galleryimage_set.all %}
+        <div class="col-md-4 mb-3">
+            <img src="{{ image.image.url }}" class="img-fluid" alt="{{ image.title }}">
+            <p class="mt-2"><strong>{{ image.title }}</strong></p>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<section id="admissions" class="my-5">
+    <h2>Admissions</h2>
+    {% if school.admissioninfo %}
+    <div class="row">
+        <div class="col-md-6">
+            <h4>Requirements</h4>
+            <p>{{ school.admissioninfo.requirements|linebreaks }}</p>
+        </div>
+        <div class="col-md-6">
+            <h4>Process</h4>
+            <p>{{ school.admissioninfo.process|linebreaks }}</p>
+        </div>
+    </div>
+    {% endif %}
+</section>
+
         <!-- Contact Section -->
         <section id="contact" class="mb-5">
             <h2 class="text-school-primary mb-4">Contact Us</h2>

@@ -8,8 +8,9 @@ urlpatterns = [
     path('teacher/subjects/', views.teacher_subjects, name='teacher_subjects'),
     path('teacher/assignments/', views.teacher_assignments, name='teacher_assignments'),
     path('teacher/assignments/create/', views.create_assignment, name='create_assignment'),
+    path('teacher/assignments/<int:assignment_id>/edit/', views.edit_assignment, name='edit_assignment'),
     path('teacher/upload-scores/', views.upload_scores, name='upload_scores'),
-    path('teacher/students/', views.teacher_students, name='teacher_students'),  # Add this line
+    path('teacher/students/', views.teacher_students, name='teacher_students'),
     
     # Student URLs
     path('student/assignments/', views.student_assignments, name='student_assignments'),

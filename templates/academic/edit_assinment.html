@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Edit Assignment - {{ school.name }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header"><h4>Edit Assignment</h4></div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label>Title</label>
+                            <input type="text" name="title" class="form-control" value="{{ assignment.title }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>Description</label>
+                            <textarea name="description" class="form-control" rows="4">{{ assignment.description }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label>Due Date</label>
+                            <input type="datetime-local" name="due_date" class="form-control" value="{{ assignment.due_date|date:'Y-m-d\TH:i' }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>Max Score</label>
+                            <input type="number" name="max_score" class="form-control" value="{{ assignment.max_score }}" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Update Assignment</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

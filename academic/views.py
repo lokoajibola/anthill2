@@ -6,15 +6,44 @@ from django.utils import timezone
 from users.models import Teacher, Student
 # from academic.models import ClassLevel
 
+@login_required
+def submit_assignment(request, assignment_id):
+    student = get_object_or_404(Student, user=request.user)
+    student_assignment = get_object_or_404(StudentAssignment, id=assignment_id, student=student)
+    
+    if request.method == 'POST':
+        submitted_text = request.POST.get('submitted_text')
+        submitted_file = request.FILES.get('submitted_file')
+        
+        student_assignment.submitted_text = submitted_text
+        if submitted_file:
+            student_assignment.submitted_file = submitted_file
+        student_assignment.is_submitted = True
+        student_assignment.submitted_at = timezone.now()
+        student_assignment.save()
+        
+        messages.success(request, 'Assignment submitted successfully!')
+        return redirect('academic:student_assignments')
+    
+    return render(request, 'academic/submit_assignment.html', {
+        'student_assignment': student_assignment,
+        'school': student.school
+    })
 
 @login_required
 def teacher_subjects(request):
     teacher = get_object_or_404(Teacher, user=request.user)
+    
+    # Just use the direct subjects relationship
     subjects = teacher.subjects.all()
+    
+    print(f"DEBUG: Teacher {teacher.user.username} has {subjects.count()} subjects")
+    for subject in subjects:
+        print(f"DEBUG: - {subject.name}")
     
     return render(request, 'academic/teacher_subjects.html', {
         'teacher': teacher,
-        'subjects': subjects,
+        'subjects': subjects,  # Simple direct relationship
         'school': teacher.school
     })
 
@@ -59,6 +88,26 @@ def teacher_assignments(request):
     return render(request, 'academic/teacher_assignments.html', {
         'teacher': teacher,
         'assignments': assignments,
+        'school': teacher.school
+    })
+
+@login_required
+def edit_assignment(request, assignment_id):
+    teacher = get_object_or_404(Teacher, user=request.user)
+    assignment = get_object_or_404(Assignment, id=assignment_id, teacher=teacher)
+    
+    if request.method == 'POST':
+        assignment.title = request.POST.get('title')
+        assignment.description = request.POST.get('description')
+        assignment.due_date = request.POST.get('due_date')
+        assignment.max_score = request.POST.get('max_score')
+        assignment.save()
+        
+        messages.success(request, 'Assignment updated successfully!')
+        return redirect('academic:teacher_assignments')
+    
+    return render(request, 'academic/edit_assignment.html', {
+        'assignment': assignment,
         'school': teacher.school
     })
 
@@ -346,17 +395,24 @@ def student_results(request):
 def student_fees(request):
     student = get_object_or_404(Student, user=request.user)
     
-    # This would typically come from a Fee model
-    fee_status = {
-        'total_due': 50000.00,
-        'amount_paid': 25000.00,
-        'balance': 25000.00,
-        'status': 'Partial',
-        'due_date': '2025-12-31'
-    }
+    student_fees = StudentFee.objects.filter(student=student).select_related('fee_structure')
+    
+    # Calculate totals
+    total_due = sum(fee.amount_due for fee in student_fees)
+    total_paid = sum(fee.amount_paid for fee in student_fees)
+    total_balance = total_due - total_paid
+    
+    # Payment history
+    payment_history = FeePayment.objects.filter(
+        student_fee__student=student
+    ).select_related('student_fee__fee_structure').order_by('-payment_date')
     
     return render(request, 'academic/student_fees.html', {
         'student': student,
-        'fee_status': fee_status,
+        'student_fees': student_fees,
+        'payment_history': payment_history,
+        'total_due': total_due,
+        'total_paid': total_paid,
+        'total_balance': total_balance,
         'school': student.school
     })

@@ -5,7 +5,53 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib import messages
 from .forms import SchoolRegistrationForm
 from .models import User, Teacher, Student
-from schools.models import SchoolAdmin
+from schools.models import SchoolAdmin, School
+from django.contrib.auth.backends import ModelBackend
+
+
+
+# users/views.py
+def custom_login(request):
+    schools = School.objects.filter(is_active=True)
+    
+    if request.method == 'POST':
+        school_id = request.POST.get('school')
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        
+        # Handle super admin login (no school selected)
+        if not school_id:
+            user = authenticate(request, username=username, password=password)
+            if user and user.user_type == 'super_admin':
+                login(request, user)
+                return redirect('admin:index')
+            else:
+                messages.error(request, 'Invalid credentials for super admin access.')
+                return render(request, 'users/login.html', {'schools': schools})
+        
+        # Handle school user login
+        try:
+            school = School.objects.get(id=school_id, is_active=True)
+            user = authenticate(request, username=username, password=password, school=school)
+            
+            if user is not None:
+                login(request, user)
+                # Redirect based on user type
+                if user.user_type == 'super_admin':
+                    return redirect('admin:index')
+                elif user.is_school_admin:
+                    return redirect('schools:dashboard')
+                elif user.user_type == 'teacher':
+                    return redirect('academic:teacher_dashboard')
+                elif user.user_type == 'student':
+                    return redirect('academic:student_dashboard')
+            else:
+                messages.error(request, 'Invalid username, password, or school.')
+                
+        except School.DoesNotExist:
+            messages.error(request, 'Invalid school selected.')
+    
+    return render(request, 'users/login.html', {'schools': schools})
 
 def register_school(request):
     if request.method == 'POST':
@@ -18,10 +64,13 @@ def register_school(request):
             try:
                 user = form.save()
                 print(f"User created: {user.username} with type: {user.user_type}")
-                login(request, user)
+                
+                # Move login inside the try block
+                login(request, user, backend='django.contrib.auth.backends.ModelBackend')
                 messages.success(request, 'School registered successfully!')
                 print("Redirecting to schools dashboard...")
                 return redirect('schools:dashboard')
+                
             except Exception as e:
                 print(f"Error during registration: {str(e)}")
                 messages.error(request, f'Error during registration: {str(e)}')

@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <h2>Manage Subjects for {{ class_level.name }}</h2>
+            
+<!-- Replace the form with this -->
+                <form method="post" class="mb-4">
+                    {% csrf_token %}
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label">Subject *</label>
+                            <select name="subject" class="form-select" required>
+                                <option value="">Select Subject</option>
+                                {% for subject in available_subjects %}
+                                <option value="{{ subject.id }}">{{ subject.name }} ({{ subject.code }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Teacher *</label>
+                            <select name="teacher" class="form-select" required>
+                                <option value="">Select Teacher</option>
+                                {% for teacher in teachers %}
+                                <option value="{{ teacher.id }}">{{ teacher.user.get_full_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="form-check">
+                                <input type="checkbox" name="is_compulsory" class="form-check-input" checked id="is_compulsory">
+                                <label class="form-check-label" for="is_compulsory">Compulsory</label>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100">Add</button>
+                        </div>
+                    </div>
+                </form>
+
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" name="clear_all" class="btn btn-danger mb-3">Clear All Subjects</button>
+            </form>
+
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Subject</th>
+                            <th>Type</th>
+                            <th>Teacher</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cs in class_subjects %}
+                        <tr>
+                            <td>{{ cs.subject.name }}</td>
+                            <td>
+                                <span class="badge bg-{% if cs.is_compulsory %}primary{% else %}success{% endif %}">
+                                    {{ cs.is_compulsory|yesno:"Compulsory,Elective" }}
+                                </span>
+                            </td>
+                            <td>{{ cs.teacher.user.get_full_name|default:"Not assigned" }}</td>
+                            <td>
+                                <form method="post" style="display:inline;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="delete_subject" value="{{ cs.id }}">
+                                    <button type="submit" class="btn btn-sm btn-danger" 
+                                            onclick="return confirm('Remove {{ cs.subject.name }} from this class?')">
+                                        Remove
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

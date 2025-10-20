@@ -1,13 +1,10 @@
 from django.db import models
-from schools.models import School
-from users.models import User, Teacher, Student
 
 class Subject(models.Model):
     name = models.CharField(max_length=100)
     code = models.CharField(max_length=10, unique=True)
     description = models.TextField(blank=True)
-    # Remove school foreign key to make subjects global
-    category = models.CharField(max_length=50, blank=True)  # e.g., "Core", "Science", "Arts"
+    category = models.CharField(max_length=50, blank=True)
     
     def __str__(self):
         return f"{self.name} ({self.code})"
@@ -15,7 +12,7 @@ class Subject(models.Model):
 class ClassLevel(models.Model):
     name = models.CharField(max_length=50)
     level = models.IntegerField()
-    school = models.ForeignKey(School, on_delete=models.CASCADE)
+    school = models.ForeignKey('schools.School', on_delete=models.CASCADE, null=True)  # String reference
     
     class Meta:
         ordering = ['level']
@@ -24,11 +21,23 @@ class ClassLevel(models.Model):
     def __str__(self):
         return f"{self.name} - {self.school.name}"
 
+class ClassSubject(models.Model):
+    class_level = models.ForeignKey(ClassLevel, on_delete=models.CASCADE)
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
+    is_compulsory = models.BooleanField(default=True)
+    teacher = models.ForeignKey('users.Teacher', on_delete=models.SET_NULL, null=True, blank=True)  # String reference
+    
+    class Meta:
+        unique_together = ['class_level', 'subject']
+    
+    def __str__(self):
+        return f"{self.class_level.name} - {self.subject.name}"
+
 class Assignment(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
-    teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE)
+    teacher = models.ForeignKey('users.Teacher', on_delete=models.CASCADE)  # String reference
     due_date = models.DateTimeField()
     max_score = models.IntegerField(default=100)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -38,7 +47,7 @@ class Assignment(models.Model):
 
 class StudentAssignment(models.Model):
     assignment = models.ForeignKey(Assignment, on_delete=models.CASCADE)
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    student = models.ForeignKey('users.Student', on_delete=models.CASCADE)  # String reference
     submitted_file = models.FileField(upload_to='assignments/', blank=True)
     submitted_text = models.TextField(blank=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
@@ -58,13 +67,13 @@ class Result(models.Model):
         ('exam', 'Exam'),
     )
     
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    student = models.ForeignKey('users.Student', on_delete=models.CASCADE)  # String reference
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
     exam_type = models.CharField(max_length=20, choices=EXAM_TYPES)
     score = models.IntegerField()
     max_score = models.IntegerField(default=100)
     date_taken = models.DateField()
-    recorded_by = models.ForeignKey(Teacher, on_delete=models.CASCADE)
+    recorded_by = models.ForeignKey('users.Teacher', on_delete=models.CASCADE)  # String reference
     
     class Meta:
         unique_together = ['student', 'subject', 'exam_type', 'date_taken']
@@ -73,33 +82,14 @@ class Result(models.Model):
         return f"{self.student} - {self.subject} - {self.get_exam_type_display()}"
     
 class FeeStructure(models.Model):
-    school = models.ForeignKey(School, on_delete=models.CASCADE)
-    name = models.CharField(max_length=100)  # e.g., "Term 1 Fees 2024"
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    due_date = models.DateField()
-    is_active = models.BooleanField(default=True)
+    class_level = models.ForeignKey('ClassLevel', on_delete=models.CASCADE, related_name='fee_structures')
+    academic_year = models.CharField(max_length=20)
+    tuition_fee = models.DecimalField(max_digits=10, decimal_places=2)
+    development_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    other_charges = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_fee = models.DecimalField(max_digits=10, decimal_places=2)
     
-    def __str__(self):
-        return f"{self.name} - {self.school.name}"
-
-class StudentFee(models.Model):
-    PAYMENT_STATUS = (
-        ('pending', 'Pending'),
-        ('partial', 'Partial'),
-        ('paid', 'Paid'),
-        ('overdue', 'Overdue'),
-    )
+    class Meta:
+        unique_together = ['class_level', 'academic_year']
     
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    fee_structure = models.ForeignKey(FeeStructure, on_delete=models.CASCADE)
-    amount_due = models.DecimalField(max_digits=10, decimal_places=2)
-    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='pending')
-    due_date = models.DateField()
-    created_at = models.DateTimeField(auto_now_add=True)
     
-    def balance(self):
-        return self.amount_due - self.amount_paid
-    
-    def __str__(self):
-        return f"{self.student} - {self.fee_structure.name}"

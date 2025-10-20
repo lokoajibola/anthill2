@@ -1,7 +1,11 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from .models import User
-from schools.models import School, SchoolAdmin
+from users.models import School
+from schools.models import SchoolAdmin
+from academic.models import Subject
+from django.core.exceptions import ValidationError
+
 
 class SchoolRegistrationForm(UserCreationForm):
     # School fields
@@ -68,34 +72,145 @@ class SchoolRegistrationForm(UserCreationForm):
             print(f"School created: {school.name}")
         
         return user
+    
+
 
 class CreateUserForm(forms.ModelForm):
-    password = forms.CharField(widget=forms.PasswordInput)
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter password'
+        }),
+        min_length=8,
+        help_text="Password must be at least 8 characters long."
+    )
+    confirm_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control', 
+            'placeholder': 'Confirm password'
+        })
+    )
+    guardian_phone = forms.CharField(max_length=15, required=False, label="Parent/Guardian Phone")
+    address = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False)
     
     class Meta:
         model = User
-        fields = ['username', 'first_name', 'last_name', 'email', 'phone', 'profile_picture']
+        fields = ['username', 'first_name', 'last_name', 'email', 'phone', 'profile_picture', 'city', 'lga', 'address', 'password', 'confirm_password', 'guardian_phone']
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'profile_picture': forms.FileInput(attrs={'class': 'form-control'}),
+        }
     
     def __init__(self, *args, **kwargs):
         self.user_type = kwargs.pop('user_type', 'teacher')
         self.school = kwargs.pop('school', None)
         super().__init__(*args, **kwargs)
+        
+        # Make email required for certain user types
+        if self.user_type in ['teacher', 'senior_admin', 'junior_admin']:
+            self.fields['email'].required = True
+        
+        # Add help text for username
+        self.fields['username'].help_text = f"Username must be unique within {self.school.name if self.school else 'the school'}."
+    
+    def clean_username(self):
+        username = self.cleaned_data['username']
+        
+        if self.school:
+            # Check if username already exists in this school
+            if User.objects.filter(username=username, school=self.school).exists():
+                raise ValidationError(f'Username "{username}" is already taken in {self.school.name}.')
+        
+        return username
+    
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        
+        if email and self.school:
+            # Check if email already exists in this school (optional)
+            if User.objects.filter(email=email, school=self.school).exists():
+                raise ValidationError(f'Email "{email}" is already registered in {self.school.name}.')
+        
+        return email
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get('password')
+        confirm_password = cleaned_data.get('confirm_password')
+        
+        if password and confirm_password and password != confirm_password:
+            self.add_error('confirm_password', "Passwords do not match.")
+        
+        return cleaned_data
     
     def save(self, commit=True):
         user = super().save(commit=False)
         user.user_type = self.user_type
+        user.school = self.school
         user.set_password(self.cleaned_data['password'])
         
         if commit:
-            user.save()
-            
-            if self.user_type == 'teacher':
-                from .models import Teacher
-                Teacher.objects.create(user=user, school=self.school)
-            elif self.user_type == 'student':
-                from .models import Student
-                Student.objects.create(user=user, school=self.school, admission_number=f"STD{user.id:06d}")
-            elif self.user_type == 'junior_admin':
-                SchoolAdmin.objects.create(user=user, school=self.school, is_senior=False)
+            try:
+                user.save()
+                
+                if self.user_type == 'teacher':
+                    from users.models import Teacher
+                    Teacher.objects.get_or_create(user=user, school=self.school)
+                    
+                elif self.user_type == 'student':
+                    from users.models import Student
+                    # Generate admission number without school code
+                    last_student = Student.objects.filter(school=self.school).order_by('-id').first()
+                    next_id = last_student.id + 1 if last_student else 1
+                    admission_number = f"STD{next_id:06d}"
+                    
+                    student = Student.objects.create(
+                        user=user, 
+                        school=self.school,
+                        admission_number=admission_number
+                    )
+                    # Save guardian phone if provided
+                    if self.cleaned_data.get('guardian_phone'):
+                        student.guardian_phone = self.cleaned_data['guardian_phone']
+                        student.save()
+                    
+                elif self.user_type == 'junior_admin':
+                    SchoolAdmin.objects.get_or_create(
+                        user=user, 
+                        school=self.school,
+                        defaults={'is_senior': False}
+                    )
+                
+                elif self.user_type == 'senior_admin':
+                    SchoolAdmin.objects.get_or_create(
+                        user=user, 
+                        school=self.school, 
+                        defaults={'is_senior': True}
+                    )
+                    
+            except Exception as e:
+                if user.pk:
+                    user.delete()
+                raise ValidationError(f"Error creating user profile: {str(e)}")
         
         return user
+    
+class SubjectForm(forms.ModelForm):
+    class Meta:
+        model = Subject
+        fields = ['name', 'code', 'description']
+    
+    def __init__(self, *args, **kwargs):
+        self.school = kwargs.pop('school', None)
+        super().__init__(*args, **kwargs)
+    
+    def save(self, commit=True):
+        subject = super().save(commit=False)
+        subject.school = self.school
+        if commit:
+            subject.save()
+        return subject

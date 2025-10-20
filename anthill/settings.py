@@ -136,3 +136,14 @@ AUTH_USER_MODEL = 'users.User'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+AUTHENTICATION_BACKENDS = [
+    'users.backends.SchoolSpecificAuthBackend',  # Your custom backend
+    'django.contrib.auth.backends.ModelBackend',  # Default backend (fallback)
+]
+
+NIGERIAN_STATES = {
+    'Lagos': ['Agege', 'Alimosho', 'Kosofe', 'Mushin', 'Oshodi-Isolo', 'Somolu', 'Apapa', 'Eti-Osa', 'Ikeja', 'Lagos Island', 'Lagos Mainland', 'Surulere'],
+    'Abuja': ['Abuja Municipal', 'Bwari', 'Gwagwalada', 'Kuje', 'Kwali'],
+    # Add other states...
+}
