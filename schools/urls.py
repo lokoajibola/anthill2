@@ -10,11 +10,12 @@ urlpatterns = [
     path('edit-user/<int:user_id>/', views.edit_user, name='edit_user'),
     path('delete-user/<int:user_id>/', views.delete_user, name='delete_user'),
     path('fees/manage/', views.manage_fees, name='manage_fees'),
+    # Move user_profile above school_homepage
+    path('user-profile/<str:user_type>/<int:user_id>/', views.user_profile, name='user_profile'),
     path('fees/student-search/', views.student_fee_search, name='student_fee_search'),
     path('fees/student/<int:student_id>/', views.student_fee_details, name='student_fee_details'),
     path('fees/analytics/', views.fee_analytics, name='fee_analytics'),
     path('create-subject/', views.create_subject, name='create_subject'),
-    # path('assign-subjects/<int:teacher_id>/', views.assign_subjects_to_teacher, name='assign_subjects'),  # Add this line
     path('gallery/', views.manage_gallery, name='manage_gallery'),
     path('gallery/delete/<int:image_id>/', views.delete_gallery_image, name='delete_gallery_image'),
     path('admission/', views.manage_admission, name='manage_admission'),
@@ -24,10 +25,13 @@ urlpatterns = [
     path('classes/<int:class_id>/subjects/', views.class_subjects, name='class_subjects'),
     path('classes/<int:class_id>/students/', views.manage_class_students, name='manage_class_students'),
     path('homepage/edit/', views.edit_school_homepage, name='edit_homepage'),
-    path('fees/', views.fee_management, name='fee_management'),
+    path('fees/management/', views.fee_management, name='fee_management'),
+    path('fees/create/', views.create_fees, name='create_fees'),
+    # path('fees/', views.fee_management, name='fee_management'),
     path('analytics/', views.school_analytics, name='analytics'),
     path('payments/', views.payment_history, name='payment_history'),
     path('upgrade/', views.upgrade_subscription, name='upgrade_subscription'),
     path('admin-analytics/', views.admin_analytics, name='admin_analytics'),
+    # Move school_homepage to the bottom since it's a catch-all
     path('<int:school_id>/', views.school_homepage, name='school_homepage'),
 ]

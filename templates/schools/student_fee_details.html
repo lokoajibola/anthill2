@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block title %}Fee Details - {{ student.user.get_full_name }} - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Fee Details - {{ student.user.get_full_name }}</h2>
+        <a href="{% url 'schools:fee_management' %}" class="btn btn-outline-secondary">Back to Fees</a>
+    </div>
+
+    <!-- Student Information -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Student Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Name:</strong> {{ student.user.get_full_name }}</p>
+                    <p><strong>Admission Number:</strong> {{ student.admission_number }}</p>
+                    <p><strong>Class:</strong> {{ student.class_level.name|default:"Not assigned" }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Phone:</strong> {{ student.user.phone|default:"-" }}</p>
+                    <p><strong>Email:</strong> {{ student.user.email|default:"-" }}</p>
+                    <p><strong>Guardian Phone:</strong> {{ student.guardian_phone|default:"-" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee Summary -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h5>Total Due</h5>
+                    <h3>₦{{ total_due }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h5>Total Paid</h5>
+                    <h3>₦{{ total_paid }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h5>Balance</h5>
+                    <h3>₦{{ total_balance }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee Details Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Fee Breakdown</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Fee Type</th>
+                            <th>Academic Year</th>
+                            <th>Amount Due</th>
+                            <th>Amount Paid</th>
+                            <th>Balance</th>
+                            <th>Status</th>
+                            <th>Due Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fee in student_fees %}
+                        <tr>
+                            <td>{{ fee.fee_structure.class_level.name }} Fees</td>
+                            <td>{{ fee.fee_structure.academic_year }}</td>
+                            <td>₦{{ fee.amount_due }}</td>
+                            <td>₦{{ fee.amount_paid }}</td>
+                            <td>₦{{ fee.balance }}</td>
+                            <td>
+                                <span class="badge bg-{% if fee.payment_status == 'paid' %}success{% elif fee.payment_status == 'partial' %}warning{% else %}danger{% endif %}">
+                                    {{ fee.payment_status|title }}
+                                </span>
+                            </td>
+                            <td>{{ fee.due_date }}</td>
+                            <td>
+                                {% if is_senior_admin %}
+                                <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#paymentModal{{ fee.id }}">
+                                    Add Payment
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+
+                        <!-- Payment Modal -->
+                        {% if is_senior_admin %}
+                        <div class="modal fade" id="paymentModal{{ fee.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Add Payment</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <form method="post">
+                                        {% csrf_token %}
+                                        <div class="modal-body">
+                                            <input type="hidden" name="student_fee_id" value="{{ fee.id }}">
+                                            <div class="mb-3">
+                                                <label class="form-label">Amount</label>
+                                                <input type="number" name="amount_paid" class="form-control" max="{{ fee.balance }}" step="0.01" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Payment Method</label>
+                                                <select name="payment_method" class="form-select" required>
+                                                    <option value="cash">Cash</option>
+                                                    <option value="transfer">Bank Transfer</option>
+                                                    <option value="card">Card</option>
+                                                    <option value="online">Online</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" name="add_payment" class="btn btn-primary">Record Payment</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center">No fee records found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment History -->
+    {% if payment_history %}
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">Payment History</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Receipt No</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                            <th>Recorded By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in payment_history %}
+                        <tr>
+                            <td>{{ payment.payment_date }}</td>
+                            <td>{{ payment.receipt_number }}</td>
+                            <td>₦{{ payment.amount_paid }}</td>
+                            <td>{{ payment.payment_method|title }}</td>
+                            <td>{{ payment.recorded_by.get_full_name }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center">No payment history</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

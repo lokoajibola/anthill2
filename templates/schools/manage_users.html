@@ -18,7 +18,13 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>User Management</h2>
-        <div>
+        <div class="d-flex gap-2">
+            <!-- Search Box -->
+            <form method="get" class="d-flex">
+                <input type="text" name="q" class="form-control me-2" placeholder="Search by name..." value="{{ request.GET.q }}">
+                <button type="submit" class="btn btn-outline-primary">Search</button>
+            </form>
+            <!-- Add User Buttons -->
             <a href="{% url 'schools:create_user' 'teacher' %}" class="btn btn-primary">Add Teacher</a>
             <a href="{% url 'schools:create_user' 'student' %}" class="btn btn-success">Add Student</a>
             <a href="{% url 'schools:create_user' 'junior_admin' %}" class="btn btn-warning">Add Junior Admin</a>
@@ -33,29 +39,28 @@
                     <h5 class="mb-0">Teachers ({{ teachers.count }})</h5>
                 </div>
                 <div class="card-body">
-                    <!-- In the teachers section -->
-{% for teacher in teachers %}
-<div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
-    <div>
-        <h6 class="mb-0">{{ teacher.get_full_name }}</h6>
-        <small class="text-muted">{{ teacher.email }}</small>
-        <br>
-        <small class="text-muted">
-            Subjects: 
-            {% if teacher.teacher.subjects.all %}
-                {{ teacher.teacher.subjects.all|join:", " }}
-            {% else %}
-                <span class="text-danger">No subjects assigned</span>
-            {% endif %}
-        </small>
-    </div>
-    <div>
-        <span class="badge bg-primary me-2">Teacher</span>
-    </div>
-</div>
-{% empty %}
-<p class="text-muted">No teachers yet.</p>
-{% endfor %}
+                    {% for teacher in teachers %}
+                    <a href="{% url 'schools:user_profile' 'teacher' teacher.id %}" class="text-decoration-none">
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded hover-shadow">
+                            <div>
+                                <h6 class="mb-0 text-dark">{{ teacher.get_full_name }}</h6>
+                                <small class="text-muted">{{ teacher.email }}</small>
+                                <br>
+                                <small class="text-muted">
+                                    Subjects: 
+                                    {% if teacher.teacher.subjects.all %}
+                                        {{ teacher.teacher.subjects.all|join:", " }}
+                                    {% else %}
+                                        <span class="text-danger">No subjects assigned</span>
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <span class="badge bg-primary">Teacher</span>
+                        </div>
+                    </a>
+                    {% empty %}
+                    <p class="text-muted">No teachers yet.</p>
+                    {% endfor %}
                 </div>
             </div>
         </div>
@@ -68,13 +73,19 @@
                 </div>
                 <div class="card-body">
                     {% for student in students %}
-                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
-                        <div>
-                            <h6 class="mb-0">{{ student.get_full_name }}</h6>
-                            <small class="text-muted">{{ student.email }}</small>
+                    <a href="{% url 'schools:user_profile' 'student' student.id %}" class="text-decoration-none">
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded hover-shadow">
+                            <div>
+                                <h6 class="mb-0 text-dark">{{ student.get_full_name }}</h6>
+                                <small class="text-muted">{{ student.email }}</small>
+                                {% if student.student.class_level %}
+                                <br>
+                                <small class="text-muted">Class: {{ student.student.class_level.name }}</small>
+                                {% endif %}
+                            </div>
+                            <span class="badge bg-success">Student</span>
                         </div>
-                        <span class="badge bg-success">Student</span>
-                    </div>
+                    </a>
                     {% empty %}
                     <p class="text-muted">No students yet.</p>
                     {% endfor %}
@@ -90,13 +101,15 @@
                 </div>
                 <div class="card-body">
                     {% for admin in junior_admins %}
-                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
-                        <div>
-                            <h6 class="mb-0">{{ admin.user.get_full_name }}</h6>
-                            <small class="text-muted">{{ admin.user.email }}</small>
+                    <a href="{% url 'schools:user_profile' 'admin' admin.user.id %}" class="text-decoration-none">
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded hover-shadow">
+                            <div>
+                                <h6 class="mb-0 text-dark">{{ admin.user.get_full_name }}</h6>
+                                <small class="text-muted">{{ admin.user.email }}</small>
+                            </div>
+                            <span class="badge bg-warning">Admin</span>
                         </div>
-                        <span class="badge bg-warning">Admin</span>
-                    </div>
+                    </a>
                     {% empty %}
                     <p class="text-muted">No junior admins yet.</p>
                     {% endfor %}
@@ -105,4 +118,12 @@
         </div>
     </div>
 </div>
+
+<style>
+.hover-shadow:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+    transition: all 0.2s ease-in-out;
+}
+</style>
 {% endblock %}

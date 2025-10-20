@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from .models import User
-from users.models import School
+from users.models import School, Student, Teacher
 from schools.models import SchoolAdmin
 from academic.models import Subject
 from django.core.exceptions import ValidationError
@@ -214,3 +214,27 @@ class SubjectForm(forms.ModelForm):
         if commit:
             subject.save()
         return subject
+    
+
+class UserProfileForm(forms.ModelForm):
+    class Meta:
+        model = Student
+        fields = '__all__'  # Include all fields
+        exclude = ['user', 'school', 'admission_number', 'guardian_phone']  # Exclude these
+        widgets = {
+            'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
+            'allergies': forms.Textarea(attrs={'rows': 2}),
+            'health_history': forms.Textarea(attrs={'rows': 2}),
+            'home_address': forms.Textarea(attrs={'rows': 2}),
+            'disciplinary_record': forms.Textarea(attrs={'rows': 2}),
+            'extra_curricular': forms.Textarea(attrs={'rows': 2}),
+            'awards': forms.Textarea(attrs={'rows': 2}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        self.user_type = kwargs.pop('user_type', 'student')
+        super().__init__(*args, **kwargs)
+        
+        if self.user_type == 'teacher':
+            self.Meta.model = Teacher
+            self.Meta.exclude = ['user', 'school', 'subjects']

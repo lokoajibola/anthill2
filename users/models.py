@@ -88,6 +88,19 @@ class Teacher(models.Model):
     subjects = models.ManyToManyField('academic.Subject', blank=True)  # String reference
     date_joined = models.DateField(auto_now_add=True)
     
+    date_of_birth = models.DateField(null=True, blank=True)
+    allergies = models.TextField(blank=True)
+    health_history = models.TextField(blank=True)
+    blood_group = models.CharField(max_length=5, blank=True)
+    genotype = models.CharField(max_length=5, blank=True)
+    home_address = models.TextField(blank=True)
+    emergency_contact = models.CharField(max_length=15, blank=True)
+    disciplinary_record = models.TextField(blank=True)
+    extra_curricular = models.TextField(blank=True)
+    sports_house = models.CharField(max_length=50, blank=True)
+    awards = models.TextField(blank=True)
+    position = models.CharField(max_length=50, blank=True)
+
     def __str__(self):
         return f"{self.user.get_full_name()} - {self.school.name}"
 
@@ -99,5 +112,18 @@ class Student(models.Model):
     date_admitted = models.DateField(auto_now_add=True)
     elective_subjects = models.ManyToManyField('academic.Subject', blank=True, related_name='elective_students')  # String reference
     
+    date_of_birth = models.DateField(null=True, blank=True)
+    allergies = models.TextField(blank=True)
+    health_history = models.TextField(blank=True)
+    blood_group = models.CharField(max_length=5, blank=True)
+    genotype = models.CharField(max_length=5, blank=True)
+    home_address = models.TextField(blank=True)
+    emergency_contact = models.CharField(max_length=15, blank=True)
+    disciplinary_record = models.TextField(blank=True)
+    extra_curricular = models.TextField(blank=True)
+    sports_house = models.CharField(max_length=50, blank=True)
+    awards = models.TextField(blank=True)
+    position = models.CharField(max_length=50, blank=True)
+
     def __str__(self):
         return f"{self.user.get_full_name()} - {self.admission_number}"

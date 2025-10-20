@@ -2,71 +2,110 @@
 
 {% block title %}Fee Management - {{ school.name }}{% endblock %}
 
-{% block navbar %}
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container">
-        <a class="navbar-brand" href="{% url 'schools:dashboard' %}">{{ school.name }}</a>
-        <div class="navbar-nav ms-auto">
-            <a class="nav-link" href="{% url 'schools:dashboard' %}">Dashboard</a>
-            <a class="nav-link" href="{% url 'users:login' %}">Logout</a>
-        </div>
-    </div>
-</nav>
-{% endblock %}
-
 {% block content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>Fee Management</h2>
         {% if is_senior_admin %}
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createFeeModal">
-            Create Fee Structure
-        </button>
+        <a href="{% url 'schools:create_fees' %}" class="btn btn-primary">Create Fees</a>
         {% endif %}
     </div>
 
+    <!-- Fees Summary -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5>Total Students</h5>
+                    <h3>{{ student_fees|length }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5>Paid Fees</h5>
+                    <h3>
+                        {% with paid=student_fees|length %}
+                        {{ paid }}
+                        {% endwith %}
+                    </h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5>Unpaid Fees</h5>
+                    <h3>
+                        {% with unpaid=student_fees|length %}
+                        {{ unpaid }}
+                        {% endwith %}
+                    </h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5>Total Revenue</h5>
+                    <h3>₦
+                        {% with total=0 %}
+                        {% for fee in student_fees %}
+                            {% widthratio total|add:fee.total_paid 1 1 as new_total %}
+                        {% endfor %}
+                        {{ new_total }}
+                        {% endwith %}
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Students Fees Table -->
     <div class="card">
         <div class="card-header">
-            <h5 class="mb-0">Student Fee Summary</h5>
+            <h5 class="mb-0">Student Fees</h5>
         </div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-striped">
                     <thead>
                         <tr>
-                            <th>Student Name</th>
-                            <th>Admission No</th>
-                            <th>Total Due</th>
-                            <th>Total Paid</th>
+                            <th>Name</th>
+                            <th>Class</th>
+                            <th>Phone</th>
+                            <th>Amount Due</th>
+                            <th>Amount Paid</th>
                             <th>Balance</th>
                             <th>Status</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for summary in fee_summary %}
+                        {% for fee in student_fees %}
                         <tr>
-                            <td>{{ summary.student.user.get_full_name }}</td>
-                            <td>{{ summary.student.admission_number }}</td>
-                            <td>${{ summary.total_due }}</td>
-                            <td>${{ summary.total_paid }}</td>
+                            <td>{{ fee.student.user.get_full_name }}</td>
+                            <td>{{ fee.student.class_level.name|default:"Not assigned" }}</td>
+                            <td>{{ fee.student.user.phone|default:"-" }}</td>
+                            <td>₦{{ fee.total_due }}</td>
+                            <td>₦{{ fee.total_paid }}</td>
+                            <td>₦{{ fee.balance }}</td>
                             <td>
-                                <span class="{% if summary.balance > 0 %}text-danger{% else %}text-success{% endif %}">
-                                    ${{ summary.balance }}
+                                <span class="badge bg-{% if fee.status == 'Paid' %}success{% else %}danger{% endif %}">
+                                    {{ fee.status }}
                                 </span>
                             </td>
                             <td>
-                                {% if summary.balance == 0 %}
-                                <span class="badge bg-success">Paid</span>
-                                {% elif summary.balance == summary.total_due %}
-                                <span class="badge bg-danger">Pending</span>
-                                {% else %}
-                                <span class="badge bg-warning">Partial</span>
+                                <a href="{% url 'schools:student_fee_details' fee.student.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                                {% if is_senior_admin %}
+                                <a href="#" class="btn btn-sm btn-outline-success">Mark Paid</a>
                                 {% endif %}
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="6" class="text-center">No students found</td>
+                            <td colspan="8" class="text-center">No students found</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -75,39 +114,4 @@
         </div>
     </div>
 </div>
-
-{% if is_senior_admin %}
-<!-- Create Fee Structure Modal -->
-<div class="modal fade" id="createFeeModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Create Fee Structure</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="post" action="{% url 'schools:create_fee_structure' %}">
-                {% csrf_token %}
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Fee Name</label>
-                        <input type="text" name="name" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Amount</label>
-                        <input type="number" name="amount" class="form-control" step="0.01" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Due Date</label>
-                        <input type="date" name="due_date" class="form-control" required>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-primary">Create</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{% endif %}
 {% endblock %}

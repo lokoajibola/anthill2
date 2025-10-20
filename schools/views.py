@@ -11,6 +11,8 @@ from academic.models import ClassLevel, Assignment, FeeStructure, Subject, Class
 # from .schools.model import StudentFee
 from django.contrib.auth import logout
 from users.forms import SubjectForm
+from users.forms import UserProfileForm
+from datetime import timedelta
 
 
 @login_required
@@ -253,7 +255,8 @@ def manage_fees(request):
     school_admin = get_object_or_404(SchoolAdmin, user=request.user)
     school = school_admin.school
     
-    fee_structures = FeeStructure.objects.filter(school=school, is_active=True)
+    # Remove is_active filter - FeeStructure doesn't have this field
+    fee_structures = FeeStructure.objects.filter(school=school)
     class_levels = ClassLevel.objects.filter(school=school)
     
     if request.method == 'POST':
@@ -286,6 +289,7 @@ def manage_fees(request):
         'fee_structures': fee_structures,
         'class_levels': class_levels
     })
+
 
 @login_required
 def create_subject(request):
@@ -332,6 +336,9 @@ def student_fee_details(request, student_id):
     
     student_fees = StudentFee.objects.filter(student=student).select_related('fee_structure')
     
+    # Add payment history query if you have a FeePayment model
+    # payment_history = FeePayment.objects.filter(student_fee__student=student).order_by('-payment_date')
+    
     if request.method == 'POST':
         if 'mark_paid' in request.POST:
             student_fee_id = request.POST.get('student_fee_id')
@@ -339,12 +346,7 @@ def student_fee_details(request, student_id):
             
             # Create payment record
             receipt_number = f"RCP{student_fee.id}{timezone.now().strftime('%Y%m%d%H%M%S')}"
-            FeePayment.objects.create(
-                student_fee=student_fee,
-                amount_paid=student_fee.balance(),
-                receipt_number=receipt_number,
-                recorded_by=request.user
-            )
+            # FeePayment.objects.create(...) - Uncomment if you have FeePayment model
             
             # Update student fee
             student_fee.amount_paid = student_fee.amount_due
@@ -362,13 +364,7 @@ def student_fee_details(request, student_id):
             
             # Create payment record
             receipt_number = f"RCP{student_fee.id}{timezone.now().strftime('%Y%m%d%H%M%S')}"
-            FeePayment.objects.create(
-                student_fee=student_fee,
-                amount_paid=amount_paid,
-                payment_method=payment_method,
-                receipt_number=receipt_number,
-                recorded_by=request.user
-            )
+            # FeePayment.objects.create(...) - Uncomment if you have FeePayment model
             
             # Update student fee
             student_fee.amount_paid += Decimal(amount_paid)
@@ -391,8 +387,11 @@ def student_fee_details(request, student_id):
         'student_fees': student_fees,
         'total_due': total_due,
         'total_paid': total_paid,
-        'total_balance': total_balance
+        'total_balance': total_balance,
+        'is_senior_admin': school_admin.is_senior,
+        # 'payment_history': payment_history,  # Uncomment if you have FeePayment model
     })
+
 
 @login_required
 def fee_analytics(request):
@@ -573,6 +572,7 @@ def school_dashboard(request):
 @login_required
 def manage_users(request):
     school_admin = get_object_or_404(SchoolAdmin, user=request.user)
+    search_query = request.GET.get('q', '')
     
     if not school_admin.is_senior:
         return redirect('schools:dashboard')
@@ -582,6 +582,19 @@ def manage_users(request):
     students = User.objects.filter(student__school=school) if hasattr(User, 'student') else []
     junior_admins = SchoolAdmin.objects.filter(school=school, is_senior=False)
     
+    # Apply search filter
+    if search_query:
+        teachers = teachers.filter(
+            Q(first_name__icontains=search_query) | 
+            Q(last_name__icontains=search_query) |
+            Q(email__icontains=search_query)
+        )
+        students = students.filter(
+            Q(first_name__icontains=search_query) | 
+            Q(last_name__icontains=search_query) |
+            Q(email__icontains=search_query)
+        )
+
     context = {
         'school': school,
         'teachers': teachers,
@@ -612,6 +625,185 @@ def edit_school_homepage(request):
     return render(request, 'schools/edit_homepage.html', {
         'school': school
     })
+
+
+@login_required
+def user_profile(request, user_type, user_id):
+    # Initialize variables
+    school = None
+    can_edit = False
+    
+    # Check if user is a school admin, otherwise get their school from their profile
+    try:
+        school_admin_obj = SchoolAdmin.objects.get(user=request.user)
+        school = school_admin_obj.school
+        can_edit = school_admin_obj.is_senior
+    except SchoolAdmin.DoesNotExist:
+        # If user is not an admin, get school from their profile
+        if request.user.user_type == 'teacher':
+            profile_obj = get_object_or_404(Teacher, user=request.user)
+            school = profile_obj.school
+        elif request.user.user_type == 'student':
+            profile_obj = get_object_or_404(Student, user=request.user)
+            school = profile_obj.school
+        else:
+            messages.error(request, "Access denied.")
+            return redirect('core:homepage')
+    
+    # Ensure school is set
+    if not school:
+        messages.error(request, "Unable to determine school.")
+        return redirect('core:homepage')
+    
+    if user_type == 'teacher':
+        user = get_object_or_404(User, id=user_id, user_type='teacher', school=school)
+        profile = get_object_or_404(Teacher, user=user)
+    elif user_type == 'student':
+        user = get_object_or_404(User, id=user_id, user_type='student', school=school)
+        profile = get_object_or_404(Student, user=user)
+    else:
+        user = get_object_or_404(User, id=user_id, school=school)
+        profile = get_object_or_404(SchoolAdmin, user=user)
+    
+    if request.method == 'POST':
+        # Handle profile picture upload
+        if 'profile_picture' in request.FILES:
+            user.profile_picture = request.FILES['profile_picture']
+            user.save()
+            messages.success(request, 'Profile picture updated successfully!')
+            return redirect('schools:user_profile', user_type=user_type, user_id=user_id)
+        
+        # Handle form data - use can_edit variable instead of school_admin
+        if can_edit:
+            form = UserProfileForm(request.POST, instance=profile, user_type=user_type)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Profile updated successfully!')
+                return redirect('schools:user_profile', user_type=user_type, user_id=user_id)
+    else:
+        form = UserProfileForm(instance=profile, user_type=user_type)
+    
+    context = {
+        'user': user,
+        'profile': profile,
+        'form': form,
+        'user_type': user_type,
+        'school': school,
+        'can_edit': can_edit,
+    }
+    return render(request, 'schools/user_profile.html', context)
+
+@login_required
+def fee_management(request):
+    school_admin = get_object_or_404(SchoolAdmin, user=request.user)
+    students = Student.objects.filter(school=school_admin.school).select_related('user', 'class_level')
+    
+    # Calculate fee totals for each student
+    student_fees = []
+    for student in students:
+        total_due = 0
+        total_paid = 0
+        
+        if student.class_level:
+            # Remove is_active filter since FeeStructure doesn't have this field
+            fee_structures = FeeStructure.objects.filter(class_level=student.class_level)
+            
+            for fee_structure in fee_structures:
+                total_due += fee_structure.total_fee
+                # Get or create student fee record
+                student_fee, created = StudentFee.objects.get_or_create(
+                    student=student,
+                    fee_structure=fee_structure,
+                    defaults={
+                        'amount_due': fee_structure.total_fee,
+                        'amount_paid': 0,
+                        'payment_status': 'pending',
+                        'due_date': timezone.now().date() + timedelta(days=30)
+                    }
+                )
+                total_paid += student_fee.amount_paid
+        
+        student_fees.append({
+            'student': student,
+            'total_due': total_due,
+            'total_paid': total_paid,
+            'balance': total_due - total_paid,
+            'status': 'Paid' if total_paid >= total_due else 'Unpaid'
+        })
+    
+    context = {
+        'school': school_admin.school,
+        'student_fees': student_fees,
+        'is_senior_admin': school_admin.is_senior,
+    }
+    return render(request, 'schools/fee_management.html', context)
+
+
+@login_required
+def create_fees(request):
+    school_admin = get_object_or_404(SchoolAdmin, user=request.user)
+    
+    if not school_admin.is_senior:
+        messages.error(request, "Only senior admins can create fees.")
+        return redirect('schools:fee_management')
+    
+    class_levels = ClassLevel.objects.filter(school=school_admin.school)
+    
+    if request.method == 'POST':
+        class_level_id = request.POST.get('class_level')
+        fee_items = request.POST.getlist('fee_items[]')
+        amounts = request.POST.getlist('amounts[]')
+        
+        if class_level_id and fee_items:
+            class_level = get_object_or_404(ClassLevel, id=class_level_id, school=school_admin.school)
+            total_amount = sum(float(amount) for amount in amounts if amount)
+            
+            # Check if fee structure already exists for this class and academic year
+            academic_year = "2024-2025"  # Make this dynamic if needed
+            fee_structure, created = FeeStructure.objects.get_or_create(
+                class_level=class_level,
+                academic_year=academic_year,
+                defaults={
+                    'tuition_fee': total_amount,
+                    'total_fee': total_amount
+                }
+            )
+            
+            if not created:
+                # Update existing fee structure
+                fee_structure.tuition_fee = total_amount
+                fee_structure.total_fee = total_amount
+                fee_structure.save()
+                messages.info(request, f'Fees updated for {class_level.name}!')
+            else:
+                messages.success(request, f'Fees created for {class_level.name} successfully!')
+            
+            # Assign fees to all students in that class
+            students = Student.objects.filter(class_level=class_level, school=school_admin.school)
+            for student in students:
+                student_fee, fee_created = StudentFee.objects.get_or_create(
+                    student=student,
+                    fee_structure=fee_structure,
+                    defaults={
+                        'amount_due': total_amount,
+                        'amount_paid': 0,
+                        'payment_status': 'pending',
+                        'due_date': timezone.now().date() + timedelta(days=30)
+                    }
+                )
+                
+                if not fee_created:
+                    # Update existing student fee
+                    student_fee.amount_due = total_amount
+                    student_fee.save()
+            
+            return redirect('schools:fee_management')
+    
+    context = {
+        'school': school_admin.school,
+        'class_levels': class_levels,
+    }
+    return render(request, 'schools/create_fees.html', context)
 
 @login_required
 def search_entities(request):
@@ -883,35 +1075,8 @@ def assign_subjects_to_teacher(request, teacher_id):
         'school': school_admin.school
     })
 
-@login_required
-def fee_management(request):
-    school_admin = get_object_or_404(SchoolAdmin, user=request.user)
-    school = school_admin.school
-    
-    students = Student.objects.filter(school=school)
-    fee_structures = FeeStructure.objects.filter(school=school, is_active=True)
-    
-    # Get fee summary
-    fee_summary = []
-    for student in students:
-        total_fees = StudentFee.objects.filter(student=student).aggregate(
-            total_due=models.Sum('amount_due'),
-            total_paid=models.Sum('amount_paid')
-        )
-        fee_summary.append({
-            'student': student,
-            'total_due': total_fees['total_due'] or 0,
-            'total_paid': total_fees['total_paid'] or 0,
-            'balance': (total_fees['total_due'] or 0) - (total_fees['total_paid'] or 0)
-        })
-    
-    context = {
-        'school': school,
-        'fee_summary': fee_summary,
-        'fee_structures': fee_structures,
-        'is_senior_admin': school_admin.is_senior,
-    }
-    return render(request, 'schools/fee_management.html', context)
+
+
 @login_required
 def assign_subjects_to_teacher(request, teacher_id):
     school_admin = get_object_or_404(SchoolAdmin, user=request.user)

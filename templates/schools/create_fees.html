@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Fees - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Create Fees</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="feeForm">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Select Class Level</label>
+                            <select name="class_level" class="form-select" required>
+                                <option value="">Choose class level...</option>
+                                {% for class_level in class_levels %}
+                                <option value="{{ class_level.id }}">{{ class_level.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Fee Items</label>
+                            <div id="feeItems">
+                                <div class="input-group mb-2">
+                                    <input type="text" name="fee_items[]" class="form-control" placeholder="Fee item (e.g., Tuition, Development)">
+                                    <input type="number" name="amounts[]" class="form-control" placeholder="Amount" step="0.01">
+                                    <button type="button" class="btn btn-outline-danger remove-item">Remove</button>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="addItem">Add Fee Item</button>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <strong>Total Amount: ₦<span id="totalAmount">0.00</span></strong>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Create Fees</button>
+                        <a href="{% url 'schools:fee_management' %}" class="btn btn-secondary">Cancel</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const feeItems = document.getElementById('feeItems');
+    const addItemBtn = document.getElementById('addItem');
+    const totalAmount = document.getElementById('totalAmount');
+    
+    // Add new fee item
+    addItemBtn.addEventListener('click', function() {
+        const newItem = document.createElement('div');
+        newItem.className = 'input-group mb-2';
+        newItem.innerHTML = `
+            <input type="text" name="fee_items[]" class="form-control" placeholder="Fee item">
+            <input type="number" name="amounts[]" class="form-control" placeholder="Amount" step="0.01">
+            <button type="button" class="btn btn-outline-danger remove-item">Remove</button>
+        `;
+        feeItems.appendChild(newItem);
+        attachRemoveEvent(newItem.querySelector('.remove-item'));
+        attachAmountEvent(newItem.querySelector('input[type="number"]'));
+    });
+    
+    // Remove fee item
+    function attachRemoveEvent(button) {
+        button.addEventListener('click', function() {
+            this.parentElement.remove();
+            calculateTotal();
+        });
+    }
+    
+    // Calculate total amount
+    function attachAmountEvent(input) {
+        input.addEventListener('input', calculateTotal);
+    }
+    
+    function calculateTotal() {
+        let total = 0;
+        document.querySelectorAll('input[name="amounts[]"]').forEach(input => {
+            total += parseFloat(input.value) || 0;
+        });
+        totalAmount.textContent = total.toFixed(2);
+    }
+    
+    // Attach events to initial items
+    document.querySelectorAll('.remove-item').forEach(attachRemoveEvent);
+    document.querySelectorAll('input[name="amounts[]"]').forEach(attachAmountEvent);
+});
+</script>
+{% endblock %}

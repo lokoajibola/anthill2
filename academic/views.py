@@ -332,10 +332,16 @@ def student_results(request):
     student = get_object_or_404(Student, user=request.user)
     results = Result.objects.filter(student=student).order_by('-date_taken')
     
+    if request.user.user_type == 'student' and request.user != student.user:
+        messages.error(request, "You don't have permission to view these results.")
+        return redirect('academic:student_dashboard')
+
     return render(request, 'academic/student_results.html', {
         'student': student,
         'results': results
     })
+
+
 @login_required
 def student_assignments(request):
     student = get_object_or_404(Student, user=request.user)
