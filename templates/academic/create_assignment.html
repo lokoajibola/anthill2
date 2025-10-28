@@ -23,8 +23,17 @@
                     <h4 class="mb-0">Create New Assignment</h4>
                 </div>
                 <div class="card-body">
-                    <form method="post">
+                    <form method="post" enctype="multipart/form-data">
                         {% csrf_token %}
+                        
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
                         
                         <div class="mb-3">
                             <label class="form-label">Assignment Title *</label>
@@ -56,9 +65,20 @@
                             </div>
                         </div>
                         
-                        <div class="mb-3">
-                            <label class="form-label">Maximum Score</label>
-                            <input type="number" name="max_score" class="form-control" value="100" min="1" max="1000">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Maximum Score</label>
+                                    <input type="number" name="max_score" class="form-control" value="100" min="1" max="1000">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Assignment File (Optional, max 2MB)</label>
+                                    <input type="file" name="assignment_file" class="form-control" accept=".pdf,.doc,.docx,.txt,.zip">
+                                    <small class="text-muted">Allowed formats: PDF, DOC, DOCX, TXT, ZIP</small>
+                                </div>
+                            </div>
                         </div>
                         
                         <button type="submit" class="btn btn-primary w-100">Create Assignment</button>

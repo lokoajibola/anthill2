@@ -1,75 +1,115 @@
 {% extends 'base.html' %}
+
+{% block title %}Class Subjects - {{ class_level.name }} - {{ school.name }}{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
-    <div class="row">
-        <div class="col-md-8">
-            <h2>Manage Subjects for {{ class_level.name }}</h2>
-            
-<!-- Replace the form with this -->
-                <form method="post" class="mb-4">
-                    {% csrf_token %}
-                    <div class="row g-2 align-items-end">
-                        <div class="col-md-4">
-                            <label class="form-label">Subject *</label>
-                            <select name="subject" class="form-select" required>
-                                <option value="">Select Subject</option>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Manage Subjects - {{ class_level.name }}</h2>
+        <a href="{% url 'schools:manage_classes' %}" class="btn btn-outline-secondary">Back to Classes</a>
+    </div>
+
+    <!-- Add Subject Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Add Subject to Class</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Select Subject</label>
+                            <select name="subject" class="form-control" required>
+                                <option value="">Choose a subject...</option>
                                 {% for subject in available_subjects %}
-                                <option value="{{ subject.id }}">{{ subject.name }} ({{ subject.code }})</option>
+                                <option value="{{ subject.id }}">{{ subject.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Teacher *</label>
-                            <select name="teacher" class="form-select" required>
-                                <option value="">Select Teacher</option>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Select Teacher</label>
+                            <select name="teacher" class="form-control" required>
+                                <option value="">Choose a teacher...</option>
                                 {% for teacher in teachers %}
                                 <option value="{{ teacher.id }}">{{ teacher.user.get_full_name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-2">
-                            <div class="form-check">
-                                <input type="checkbox" name="is_compulsory" class="form-check-input" checked id="is_compulsory">
-                                <label class="form-check-label" for="is_compulsory">Compulsory</label>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Subject Type</label>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" name="is_compulsory" id="is_compulsory" checked>
+                                <label class="form-check-label" for="is_compulsory">
+                                    Compulsory Subject
+                                </label>
                             </div>
                         </div>
-                        <div class="col-md-2">
-                            <button type="submit" class="btn btn-primary w-100">Add</button>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="submit" class="btn btn-primary w-100">Add Subject</button>
                         </div>
                     </div>
-                </form>
-
-            <form method="post">
-                {% csrf_token %}
-                <button type="submit" name="clear_all" class="btn btn-danger mb-3">Clear All Subjects</button>
+                </div>
             </form>
+        </div>
+    </div>
 
+    <!-- Class Subjects List -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Class Subjects</h5>
+        </div>
+        <div class="card-body">
+            {% if class_subjects %}
             <div class="table-responsive">
                 <table class="table table-striped">
                     <thead>
                         <tr>
-                            <th>Subject</th>
-                            <th>Type</th>
+                            <th>Subject Name</th>
                             <th>Teacher</th>
-                            <th>Action</th>
+                            <th>Type</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for cs in class_subjects %}
+                        {% for class_subject in class_subjects %}
                         <tr>
-                            <td>{{ cs.subject.name }}</td>
+                            <td>{{ class_subject.subject.name }}</td>
                             <td>
-                                <span class="badge bg-{% if cs.is_compulsory %}primary{% else %}success{% endif %}">
-                                    {{ cs.is_compulsory|yesno:"Compulsory,Elective" }}
-                                </span>
+                                {% if class_subject.teacher %}
+                                {{ class_subject.teacher.user.get_full_name }}
+                                {% else %}
+                                <span class="text-muted">Not assigned</span>
+                                {% endif %}
                             </td>
-                            <td>{{ cs.teacher.user.get_full_name|default:"Not assigned" }}</td>
                             <td>
-                                <form method="post" style="display:inline;">
+                                <form method="post" class="d-inline">
                                     {% csrf_token %}
-                                    <input type="hidden" name="delete_subject" value="{{ cs.id }}">
-                                    <button type="submit" class="btn btn-sm btn-danger" 
-                                            onclick="return confirm('Remove {{ cs.subject.name }} from this class?')">
+                                    <input type="hidden" name="subject_id" value="{{ class_subject.id }}">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="is_compulsory" 
+                                               {% if class_subject.is_compulsory %}checked{% endif %}
+                                               onchange="this.form.submit()">
+                                        <label class="form-check-label">
+                                            {% if class_subject.is_compulsory %}Compulsory{% else %}Elective{% endif %}
+                                        </label>
+                                    </div>
+                                </form>
+                            </td>
+                            <td>
+                                <form method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="delete_subject" value="{{ class_subject.id }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                            onclick="return confirm('Remove {{ class_subject.subject.name }} from this class?')">
                                         Remove
                                     </button>
                                 </form>
@@ -79,6 +119,11 @@
                     </tbody>
                 </table>
             </div>
+            {% else %}
+            <div class="alert alert-info">
+                No subjects added to this class yet.
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

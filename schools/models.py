@@ -79,6 +79,8 @@ class Payment(models.Model):
     def __str__(self):
         return f"{self.school.name} - ${self.amount} - {self.status}"
 
+
+
 class GalleryImage(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE, null = True)
     image = models.ImageField(upload_to='gallery/')

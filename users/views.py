@@ -7,7 +7,7 @@ from .forms import SchoolRegistrationForm
 from .models import User, Teacher, Student
 from schools.models import SchoolAdmin, School
 from django.contrib.auth.backends import ModelBackend
-
+from academic.models import ClassLevel
 
 
 # users/views.py

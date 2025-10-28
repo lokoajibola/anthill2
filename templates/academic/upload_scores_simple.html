@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Scores - Simple Test</title>
+</head>
+<body>
+    <h1>Upload Scores - Simple Test</h1>
+    
+    <h2>Debug Info:</h2>
+    <p>School: {{ school.name }}</p>
+    <p>Classes count: {{ classes|length }}</p>
+    <p>Subjects count: {{ teacher_subjects|length }}</p>
+    
+    <h3>Classes:</h3>
+    <ul>
+    {% for class in classes %}
+        <li>{{ class.name }} (ID: {{ class.id }})</li>
+    {% empty %}
+        <li>No classes</li>
+    {% endfor %}
+    </ul>
+    
+    <h3>Subjects:</h3>
+    <ul>
+    {% for subject in teacher_subjects %}
+        <li>{{ subject.name }} (ID: {{ subject.id }})</li>
+    {% empty %}
+        <li>No subjects</li>
+    {% endfor %}
+    </ul>
+</body>
+</html>

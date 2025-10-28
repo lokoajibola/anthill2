@@ -1,23 +1,71 @@
 {% extends 'base.html' %}
+
+{% block title %}Manage Classes - {{ school.name }}{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
+    <!-- Debug Info -->
+    <div class="alert alert-info d-none">  <!-- Add d-none to hide after debugging -->
+        <strong>Debug Info:</strong><br>
+        User: {{ user.username }}<br>
+        User Type: {{ user.user_type }}<br>
+        Is Senior Admin: {{ is_senior_admin }}<br>
+        Classes Count: {{ classes.count }}
+    </div>
+
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>Class Management</h2>
+        {% if is_senior_admin %}
         <a href="{% url 'schools:create_class' %}" class="btn btn-primary">Create New Class</a>
+        {% else %}
+        <span class="text-muted">(Only senior admins can create classes)</span>
+        {% endif %}
     </div>
-    
+
+    {% if messages %}
+    <div class="mb-3">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <div class="row">
         {% for class in classes %}
-        <div class="col-md-4 mb-3">
+        <div class="col-md-4 mb-4">
             <div class="card">
                 <div class="card-body">
                     <h5 class="card-title">{{ class.name }}</h5>
-                    <p class="card-text">Level: {{ class.level }}</p>
+                    <p class="card-text">
+                        <strong>Level:</strong> {{ class.level }}<br>
+                        <strong>Students:</strong> {{ class.student_set.count }}<br>
+                        <strong>Subjects:</strong> {{ class.classsubject_set.count }}
+                    </p>
+                    
                     <div class="btn-group w-100">
-                        <a href="{% url 'schools:class_subjects' class.id %}" class="btn btn-sm btn-outline-primary">Manage Subjects</a>
-                        <a href="{% url 'schools:manage_class_students' class.id %}" class="btn btn-sm btn-outline-success">Manage Students</a>
+                        <a href="{% url 'schools:class_subjects' class.id %}" class="btn btn-outline-primary btn-sm">Manage Subjects</a>
+                        <a href="{% url 'schools:manage_class_teachers' class.id %}" class="btn btn-outline-info btn-sm">Manage Teachers</a>
+                    </div>
+                    
+                    <div class="mt-2">
+                        <a href="{% url 'schools:manage_class_students' class.id %}" class="btn btn-outline-success btn-sm w-100">Manage Students</a>
                     </div>
                 </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info text-center">
+                <h5>No Classes Found</h5>
+                <p>Get started by creating your first class.</p>
+                {% if is_senior_admin %}
+                <a href="{% url 'schools:create_class' %}" class="btn btn-primary">Create First Class</a>
+                {% else %}
+                <p class="text-muted">Contact a senior administrator to create classes.</p>
+                {% endif %}
             </div>
         </div>
         {% endfor %}

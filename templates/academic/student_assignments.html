@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block title %}My Assignments - {{ school.name }}{% endblock %}
+
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'users:student_dashboard' %}">Student Dashboard</a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="{% url 'academic:student_results' %}">Results</a>
+            <a class="nav-link" href="{% url 'academic:student_fees' %}">Fees</a>
+            <a class="nav-link" href="{% url 'users:logout' %}">Logout</a>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">My Assignments</h4>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    {% if assignments %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th>Assignment</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                    <th>Score</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for assignment in assignments %}
+                                <tr>
+                                    <td>{{ assignment.assignment.subject.name }}</td>
+                                    <td>
+                                        <!-- Make assignment title clickable -->
+                                        <a href="{% url 'academic:assignment_detail' assignment.assignment.id %}" 
+                                           class="text-decoration-none fw-bold text-primary">
+                                            {{ assignment.assignment.title }}
+                                        </a>
+                                        {% if assignment.assignment.description %}
+                                        <br><small class="text-muted">{{ assignment.assignment.description|truncatewords:10 }}</small>
+                                        {% endif %}
+                                        {% if assignment.assignment.assignment_file %}
+                                        <br>
+                                        <small>
+                                            <a href="{{ assignment.assignment.assignment_file.url }}" target="_blank" class="text-decoration-none">
+                                                📎 Download Assignment File
+                                            </a>
+                                        </small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ assignment.assignment.due_date|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        {% if assignment.is_submitted %}
+                                        <span class="badge bg-success">Submitted</span>
+                                        {% else %}
+                                            {% if now > assignment.assignment.due_date %}
+                                            <span class="badge bg-danger">Overdue</span>
+                                            {% else %}
+                                            <span class="badge bg-warning">Pending</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if assignment.score is not None %}
+                                        {{ assignment.score }}/{{ assignment.assignment.max_score }}
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if not assignment.is_submitted %}
+                                            {% if now < assignment.assignment.due_date %}
+                                            <a href="{% url 'academic:submit_assignment' assignment.id %}" class="btn btn-primary btn-sm">Submit</a>
+                                            {% else %}
+                                            <span class="text-muted">Due date passed</span>
+                                            {% endif %}
+                                        {% else %}
+                                            {% if assignment.submitted_file %}
+                                            <a href="{{ assignment.submitted_file.url }}" target="_blank" class="btn btn-outline-primary btn-sm">View Submission</a>
+                                            {% else %}
+                                            <span class="text-muted">No file submitted</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <p>No assignments found.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

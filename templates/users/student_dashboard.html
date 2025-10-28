@@ -2,84 +2,89 @@
 
 {% block title %}Student Dashboard - {{ school.name }}{% endblock %}
 
-{% block navbar %}
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container">
-        <a class="navbar-brand" href="{% url 'users:student_dashboard' %}">Student Dashboard</a>
-        <div class="navbar-nav ms-auto">
-            <a class="nav-link" href="#">My Results</a>
-            <a class="nav-link" href="#">Assignments</a>
-            <a class="nav-link" href="#">Fee Status</a>
-            <a class="nav-link" href="{% url 'users:logout' %}">Logout</a>
-        </div>
-    </div>
-</nav>
-{% endblock %}
-
 {% block content %}
 <div class="container mt-4">
-    <div class="row">
-        <div class="col-md-3">
+    <!-- Student Profile Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
             <div class="card">
                 <div class="card-body text-center">
-                    <a href="{% url 'schools:user_profile' 'student' student.user.id %}" class="text-decoration-none">
-                        {% if student.user.profile_picture %}
-                        <img src="{{ student.user.profile_picture.url }}" class="rounded-circle mb-3" style="width: 100px; height: 100px; object-fit: cover;">
-                        {% else %}
-                        <div class="rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center mb-3" style="width: 100px; height: 100px;">
-                            <span class="text-white">{{ student.user.get_full_name|make_list|first }}</span>
-                        </div>
-                        {% endif %}
-                        <h5 class="text-dark">{{ student.user.get_full_name }}</h5>
-                    </a>
-                    <p class="text-muted">Student</p>
-                    <p class="text-muted">{{ school.name }}</p>
+                    {% if student.user.profile_picture %}
+                    <img src="{{ student.user.profile_picture.url }}" class="rounded-circle mb-3" style="width: 100px; height: 100px; object-fit: cover;">
+                    {% else %}
+                    <div class="rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center mb-3" style="width: 100px; height: 100px;">
+                        <span class="text-white">{{ student.user.get_full_name|make_list|first }}</span>
+                    </div>
+                    {% endif %}
+                    <h4>{{ student.user.get_full_name }}</h4>
+                    <p class="text-muted">Student • {{ student.class_level.name|default:"No Class Assigned" }}</p>
                     <p class="text-muted">Admission: {{ student.admission_number }}</p>
                 </div>
             </div>
         </div>
-        
-        <div class="col-md-9">
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="card bg-primary text-white">
-                        <div class="card-body">
-                            <h5>Assignments</h5>
-                            <h2>0</h2>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card bg-success text-white">
-                        <div class="card-body">
-                            <h5>Results</h5>
-                            <h2>0</h2>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card bg-warning text-white">
-                        <div class="card-body">
-                            <h5>Fee Status</h5>
-                            <h2>Pending</h2>
-                        </div>
-                    </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <a href="{% url 'academic:student_results' %}" class="btn btn-primary w-100 mb-2">
+                        📊 View My Results
+                    </a>
+                    <p class="mt-2 text-muted">Check your academic performance</p>
                 </div>
             </div>
-            
-            <div class="card mt-4">
+        </div>
+
+        <!-- Add other student-specific cards here -->
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <a href="#" class="btn btn-outline-primary w-100 mb-2">
+                        📚 My Subjects
+                    </a>
+                    <p class="mt-2 text-muted">View your enrolled subjects</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <a href="#" class="btn btn-outline-primary w-100 mb-2">
+                        📅 My Schedule
+                    </a>
+                    <p class="mt-2 text-muted">View your class timetable</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity / Quick Stats -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">Quick Actions</h5>
+                    <h5 class="mb-0">Quick Overview</h5>
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <a href="#" class="btn btn-outline-primary w-100 mb-2">View Results</a>
-                            <a href="#" class="btn btn-outline-success w-100 mb-2">Check Assignments</a>
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h5>{{ recent_scores.count }}</h5>
+                            <small class="text-muted">Recent Scores</small>
                         </div>
-                        <div class="col-md-6">
-                            <a href="#" class="btn btn-outline-info w-100 mb-2">Upload Assignment</a>
-                            <a href="#" class="btn btn-outline-warning w-100 mb-2">Check Fees</a>
+                        <div class="col-md-3">
+                            <h5>{{ subject_count }}</h5>
+                            <small class="text-muted">Subjects</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h5>{{ average_score|default:"0" }}%</h5>
+                            <small class="text-muted">Average Score</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h5>{{ assignments_count }}</h5>
+                            <small class="text-muted">Pending Assignments</small>
                         </div>
                     </div>
                 </div>

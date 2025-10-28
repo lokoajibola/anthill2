@@ -4,6 +4,7 @@
 
 {% block content %}
 <div class="container mt-4">
+
     <div class="row">
         <div class="col-md-12">
             <div class="card">
@@ -11,81 +12,463 @@
                     <h4 class="mb-0">Upload Student Scores</h4>
                 </div>
                 <div class="card-body">
-                    <form method="post">
-                        {% csrf_token %}
-                        
+                    <!-- Step 1: Select Class -->
+                    <div id="step1" class="mb-4">
+                        <h5>Step 1: Select a Class</h5>
                         <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Select Student *</label>
-                                    <select name="student" class="form-control" required>
-                                        <option value="">Choose a student...</option>
-                                        {% for student in students %}
-                                        <option value="{{ student.id }}">{{ student.user.get_full_name }} - {{ student.admission_number }}</option>
-                                        {% endfor %}
-                                    </select>
+                            {% for class in classes %}
+                            <div class="col-md-3 mb-3">
+                                <div class="card class-card" data-class-id="{{ class.id }}">
+                                    <div class="card-body text-center">
+                                        <h6>{{ class.name }}</h6>
+                                        <small class="text-muted">Click to select</small>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Select Subject *</label>
-                                    <select name="subject" class="form-control" required>
-                                        <option value="">Choose a subject...</option>
-                                        {% for subject in subjects %}
-                                        <option value="{{ subject.id }}">{{ subject.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
+                            {% empty %}
+                            <div class="col-12">
+                                <div class="alert alert-warning">No classes available</div>
                             </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label class="form-label">Exam Type *</label>
-                                    <select name="exam_type" class="form-control" required>
-                                        <option value="">Select type...</option>
-                                        <option value="test">Test</option>
-                                        <option value="assignment">Assignment</option>
-                                        <option value="exam">Exam</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label class="form-label">Score *</label>
-                                    <input type="number" name="score" class="form-control" min="0" max="100" required>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label class="form-label">Max Score</label>
-                                    <input type="number" name="max_score" class="form-control" value="100" min="1" max="1000">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Date Taken *</label>
-                            <input type="date" name="date_taken" class="form-control" required>
-                        </div>
-
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">Upload Score</button>
-                        </div>
-                    </form>
-
-                    {% if students %}
-                    <div class="mt-4">
-                        <h5>Recent Score Uploads</h5>
-                        <div class="alert alert-info">
-                            <p class="mb-0">No recent score uploads. Scores will appear here after you upload them.</p>
+                            {% endfor %}
                         </div>
                     </div>
-                    {% endif %}
+
+                    <!-- Step 2: Select Subject (hidden initially) -->
+                    <div id="step2" class="mb-4" style="display: none;">
+                        <h5>Step 2: Select a Subject</h5>
+                        <div class="row" id="subject-cards">
+                            <!-- Subjects will be loaded here by JavaScript -->
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary mt-3" onclick="backToStep1()">
+                            ← Back to Classes
+                        </button>
+                    </div>
+
+                    <!-- Step 3: Enter Scores (hidden initially) -->
+                    <div id="step3" style="display: none;">
+                        <h5>Step 3: Enter Scores for <span id="selected-class-subject"></span></h5>
+                        
+                        <form method="post" id="scoreForm">
+                            {% csrf_token %}
+                            <input type="hidden" name="class_level" id="form-class-id">
+                            <input type="hidden" name="subject" id="form-subject-id">
+                            
+                            <div class="row mb-4">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Exam Type</label>
+                                        <select name="exam_type" class="form-control" required>
+                                            <option value="test">Test</option>
+                                            <option value="assignment">Assignment</option>
+                                            <option value="exam">Exam</option>
+                                            <option value="quiz">Quiz</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Max Score</label>
+                                        <input type="number" name="max_score" class="form-control" value="100" min="1" max="1000" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Date Taken</label>
+                                        <input type="date" name="date_taken" class="form-control" value="{% now 'Y-m-d' %}" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Student Name</th>
+                                            <th>Student ID</th>
+                                            <th>Score</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="students-table">
+                                        <!-- Students will be loaded here by JavaScript -->
+                                        <tr class="text-center">
+                                            <td colspan="4" class="py-4">
+                                                <div class="text-muted">
+                                                    <i class="fas fa-users fa-2x mb-2"></i>
+                                                    <p>Select a class and subject to load students</p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="d-grid gap-2 mt-3">
+                                <button type="submit" name="upload_scores" class="btn btn-success btn-lg">
+                                    <i class="fas fa-upload me-2"></i>Upload All Results
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="backToStep2()">
+                                    <i class="fas fa-arrow-left me-2"></i>Back to Subjects
+                                </button>
+                            </div>
+                        </form>
+                        <!-- Add this after the form closing tag -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">Recently Uploaded Results</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Student</th>
+                        <th>Subject</th>
+                        <th>Exam Type</th>
+                        <th>Score</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for result in recent_results %}
+                    <tr>
+                        <td>{{ result.student.user.get_full_name }}</td>
+                        <td>{{ result.subject.name }}</td>
+                        <td>{{ result.get_exam_type_display }}</td>
+                        <td>{{ result.score }}/{{ result.max_score }}</td>
+                        <td>{{ result.date_taken }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" 
+                                    onclick="editResult({{ result.id }})">
+                                Edit
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No results uploaded yet</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+let selectedClassId = null;
+let selectedClassName = null;
+let currentStudents = []; // Store students data
+
+// Step 1: Select Class
+document.querySelectorAll('.class-card').forEach(card => {
+    card.addEventListener('click', function() {
+        selectedClassId = this.getAttribute('data-class-id');
+        selectedClassName = this.querySelector('h6').textContent;
+        
+        // Highlight selected class
+        document.querySelectorAll('.class-card').forEach(c => c.classList.remove('border-primary'));
+        this.classList.add('border-primary');
+        
+        // Load subjects for this class
+        loadSubjects(selectedClassId);
+        
+        // Show step 2
+        document.getElementById('step1').style.display = 'none';
+        document.getElementById('step2').style.display = 'block';
+    });
+});
+
+function editResult(resultId) {
+    // Redirect to edit page or open modal
+    window.location.href = `/academic/edit-result/${resultId}/`;
+}
+// Load subjects for selected class
+function loadSubjects(classId) {
+    fetch(`/academic/api/class-subjects/${classId}/`)
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('subject-cards');
+            container.innerHTML = '';
+            
+            if (data.subjects && data.subjects.length > 0) {
+                data.subjects.forEach(subject => {
+                    const card = document.createElement('div');
+                    card.className = 'col-md-3 mb-3';
+                    card.innerHTML = `
+                        <div class="card subject-card" data-subject-id="${subject.id}" data-subject-name="${subject.name}">
+                            <div class="card-body text-center">
+                                <h6>${subject.name}</h6>
+                                <small class="text-muted">Click to select</small>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+                
+                // Add click listeners to subject cards
+                document.querySelectorAll('.subject-card').forEach(card => {
+                    card.addEventListener('click', function() {
+                        const subjectId = this.getAttribute('data-subject-id');
+                        const subjectName = this.getAttribute('data-subject-name');
+                        
+                        // Highlight selected subject
+                        document.querySelectorAll('.subject-card').forEach(c => c.classList.remove('border-primary'));
+                        this.classList.add('border-primary');
+                        
+                        // Load students and show step 3
+                        loadStudents(classId, subjectId, selectedClassName, subjectName);
+                    });
+                });
+            } else {
+                container.innerHTML = '<div class="col-12"><div class="alert alert-warning">No subjects available for this class</div></div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading subjects:', error);
+            document.getElementById('subject-cards').innerHTML = '<div class="col-12"><div class="alert alert-danger">Error loading subjects</div></div>';
+        });
+}
+
+// Load students for selected class and subject
+function loadStudents(classId, subjectId, className, subjectName) {
+    fetch(`/academic/api/class-students/${classId}/`)
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('students-table');
+            container.innerHTML = '';
+            currentStudents = []; // Reset current students
+            
+            if (data.students && data.students.length > 0) {
+                data.students.forEach(student => {
+                    currentStudents.push(student); // Store student data
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>
+                            ${student.full_name}
+                            <input type="hidden" name="student_ids" value="${student.id}">
+                        </td>
+                        <td>${student.admission_number || 'N/A'}</td>
+                        <td>
+                            <input type="number" 
+                                   name="scores" 
+                                   class="form-control score-input" 
+                                   min="0" 
+                                   max="1000" 
+                                   placeholder="Enter score"
+                                   style="width: 120px;"
+                                   required>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">Pending</span>
+                        </td>
+                    `;
+                    container.appendChild(row);
+                });
+                
+                // Update form and show step 3
+                document.getElementById('form-class-id').value = classId;
+                document.getElementById('form-subject-id').value = subjectId;
+                document.getElementById('selected-class-subject').textContent = `${className} - ${subjectName}`;
+                
+                document.getElementById('step2').style.display = 'none';
+                document.getElementById('step3').style.display = 'block';
+            } else {
+                container.innerHTML = '<tr><td colspan="4" class="text-center">No students found in this class</td></tr>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading students:', error);
+            document.getElementById('students-table').innerHTML = '<tr><td colspan="4" class="text-center">Error loading students</td></tr>';
+        });
+}
+
+// Form submission handler
+document.getElementById('scoreForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const studentIds = formData.getAll('student_ids');
+    const scores = formData.getAll('scores');
+    
+    // Validate that all scores are entered
+    const emptyScores = scores.filter(score => score === '');
+    if (emptyScores.length > 0) {
+        alert('Please enter scores for all students');
+        return;
+    }
+    
+    // Validate scores are within max_score range
+    const maxScore = parseInt(formData.get('max_score'));
+    const invalidScores = scores.filter(score => {
+        const scoreValue = parseInt(score);
+        return scoreValue < 0 || scoreValue > maxScore;
+    });
+    
+    if (invalidScores.length > 0) {
+        alert(`Scores must be between 0 and ${maxScore}`);
+        return;
+    }
+    
+    // Create the data payload
+    const resultsData = {
+        class_level: formData.get('class_level'),
+        subject: formData.get('subject'),
+        exam_type: formData.get('exam_type'),
+        max_score: maxScore,
+        date_taken: formData.get('date_taken'),
+        results: []
+    };
+    
+    // Pair student IDs with scores
+    studentIds.forEach((studentId, index) => {
+        resultsData.results.push({
+            student_id: studentId,
+            score: scores[index]
+        });
+    });
+    
+    // Submit the data
+    submitResults(resultsData);
+});
+
+// Function to submit results to the server
+function submitResults(resultsData) {
+    const submitBtn = document.querySelector('button[name="upload_scores"]');
+    const originalText = submitBtn.innerHTML;
+    
+    // Show loading state
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
+    submitBtn.disabled = true;
+    
+    // Update all status badges to uploading
+    document.querySelectorAll('td:nth-child(4) .badge').forEach(badge => {
+        badge.className = 'badge bg-warning';
+        badge.innerHTML = 'Uploading...';
+    });
+    
+    fetch('/academic/upload-scores/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(resultsData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            showNotification('Results uploaded successfully!', 'success');
+            
+            // Update all status badges to success
+            document.querySelectorAll('td:nth-child(4) .badge').forEach(badge => {
+                badge.className = 'badge bg-success';
+                badge.innerHTML = 'Uploaded';
+            });
+            
+            // Reset form after delay
+            setTimeout(() => {
+                backToStep1();
+            }, 2000);
+            
+        } else {
+            throw new Error(data.error || 'Unknown error occurred');
+        }
+    })
+    .catch(error => {
+        console.error('Error uploading results:', error);
+        showNotification('Error uploading results: ' + error.message, 'error');
+        
+        // Update status badges to error
+        document.querySelectorAll('td:nth-child(4) .badge').forEach(badge => {
+            badge.className = 'badge bg-danger';
+            badge.innerHTML = 'Failed';
+        });
+    })
+    .finally(() => {
+        // Restore button state
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+}
+
+// Helper function to show notifications
+function showNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show`;
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Insert at the top of the card body
+    const cardBody = document.querySelector('.card-body');
+    cardBody.insertBefore(notification, cardBody.firstChild);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Navigation functions
+function backToStep1() {
+    document.getElementById('step2').style.display = 'none';
+    document.getElementById('step3').style.display = 'none';
+    document.getElementById('step1').style.display = 'block';
+    selectedClassId = null;
+    selectedClassName = null;
+    currentStudents = [];
+    
+    // Reset form
+    document.getElementById('scoreForm').reset();
+}
+
+function backToStep2() {
+    document.getElementById('step3').style.display = 'none';
+    document.getElementById('step2').style.display = 'block';
+}
+</script>
+
+<style>
+.class-card, .subject-card {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.class-card:hover, .subject-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.border-primary {
+    border: 2px solid #0d6efd !important;
+}
+
+.score-input {
+    transition: all 0.3s;
+}
+
+.score-input:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+</style>
 {% endblock %}

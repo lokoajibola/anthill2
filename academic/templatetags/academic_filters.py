@@ -14,3 +14,9 @@ def groupby(value, arg):
     for key, group in groupby(value, lambda x: getattr(x, arg)):
         groups.append((key, list(group)))
     return groups
+
+
+@register.filter
+def get_item(dictionary, key):
+    """Get a value from a dictionary by key"""
+    return dictionary.get(key)

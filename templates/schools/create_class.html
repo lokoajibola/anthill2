@@ -1,4 +1,7 @@
 {% extends 'base.html' %}
+
+{% block title %}Create Class - {{ school.name }}{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
@@ -8,22 +11,51 @@
                     <h4 class="mb-0">Create New Class</h4>
                 </div>
                 <div class="card-body">
+                    {% if messages %}
+                    <div class="mb-3">
+                        {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
                     <form method="post">
                         {% csrf_token %}
+                        
                         <div class="mb-3">
                             <label class="form-label">Class Name *</label>
-                            <input type="text" name="name" class="form-control" required 
-                                   placeholder="e.g., Primary 1, JSS 2, SS 3">
+                            <input type="text" name="name" class="form-control" placeholder="e.g., Primary 1, JSS 1, SS 1" required>
+                            <div class="form-text">Enter a descriptive name for the class</div>
                         </div>
+                        
                         <div class="mb-3">
-                            <label class="form-label">Level *</label>
-                            <input type="number" name="level" class="form-control" required 
-                                   placeholder="e.g., 1 for Primary 1, 7 for JSS 1">
-                            <small class="text-muted">Used for ordering classes</small>
+                            <label class="form-label">Class Level *</label>
+                            <select name="level" class="form-control" required>
+                                <option value="">Select level...</option>
+                                <option value="primary_1">Primary 1</option>
+                                <option value="primary_2">Primary 2</option>
+                                <option value="primary_3">Primary 3</option>
+                                <option value="primary_4">Primary 4</option>
+                                <option value="primary_5">Primary 5</option>
+                                <option value="primary_6">Primary 6</option>
+                                <option value="jss_1">JSS 1</option>
+                                <option value="jss_2">JSS 2</option>
+                                <option value="jss_3">JSS 3</option>
+                                <option value="ss_1">SS 1</option>
+                                <option value="ss_2">SS 2</option>
+                                <option value="ss_3">SS 3</option>
+                            </select>
+                            <div class="form-text">Select the educational level for this class</div>
                         </div>
+                        
+                        
+
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary">Create Class</button>
-                            <a href="{% url 'schools:manage_classes' %}" class="btn btn-secondary">Cancel</a>
+                            <a href="{% url 'schools:manage_classes' %}" class="btn btn-outline-secondary">Cancel</a>
                         </div>
                     </form>
                 </div>

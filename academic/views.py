@@ -1,34 +1,58 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from .models import Subject, Assignment, StudentAssignment, Result, ClassLevel
+from .models import Subject, Assignment, StudentAssignment, Result, ClassLevel, Result
 from django.utils import timezone
 from users.models import Teacher, Student
+from schools.models import StudentFee, FeePayment
+from django.views.decorators.http import require_http_methods
+from django.http import JsonResponse
+import json
+from django.core.files.storage import FileSystemStorage
+from django.conf import settings
+import os
+
 # from academic.models import ClassLevel
 
 @login_required
-def submit_assignment(request, assignment_id):
-    student = get_object_or_404(Student, user=request.user)
-    student_assignment = get_object_or_404(StudentAssignment, id=assignment_id, student=student)
+def submit_assignment(request, student_assignment_id):
+    student_assignment = get_object_or_404(StudentAssignment, id=student_assignment_id, student__user=request.user)
     
     if request.method == 'POST':
-        submitted_text = request.POST.get('submitted_text')
-        submitted_file = request.FILES.get('submitted_file')
+        # Check if assignment is already submitted
+        if student_assignment.is_submitted:
+            messages.error(request, 'Assignment has already been submitted.')
+            return redirect('academic:student_assignments')
         
-        student_assignment.submitted_text = submitted_text
-        if submitted_file:
+        # Check if due date has passed
+        if timezone.now() > student_assignment.assignment.due_date:
+            messages.error(request, 'Cannot submit assignment after due date.')
+            return redirect('academic:student_assignments')
+        
+        # Handle file upload
+        if 'submitted_file' in request.FILES:
+            submitted_file = request.FILES['submitted_file']
+            # Check file size (2MB limit)
+            if submitted_file.size > 2 * 1024 * 1024:
+                messages.error(request, 'File size must be less than 2MB.')
+                return render(request, 'academic/submit_assignment.html', {
+                    'student_assignment': student_assignment
+                })
+            
             student_assignment.submitted_file = submitted_file
-        student_assignment.is_submitted = True
-        student_assignment.submitted_at = timezone.now()
-        student_assignment.save()
-        
-        messages.success(request, 'Assignment submitted successfully!')
-        return redirect('academic:student_assignments')
+            student_assignment.is_submitted = True
+            student_assignment.submission_date = timezone.now()
+            student_assignment.save()
+            
+            messages.success(request, 'Assignment submitted successfully!')
+            return redirect('academic:student_assignments')
+        else:
+            messages.error(request, 'Please select a file to upload.')
     
     return render(request, 'academic/submit_assignment.html', {
-        'student_assignment': student_assignment,
-        'school': student.school
+        'student_assignment': student_assignment
     })
+
 
 @login_required
 def teacher_subjects(request):
@@ -124,7 +148,7 @@ def create_assignment(request):
         
         subject = get_object_or_404(Subject, id=subject_id)
         
-        assignment = Assignment.objects.create(
+        assignment = Assignment(
             title=title,
             description=description,
             subject=subject,
@@ -132,6 +156,30 @@ def create_assignment(request):
             due_date=due_date,
             max_score=max_score
         )
+        
+        # Handle file upload
+        if 'assignment_file' in request.FILES:
+            assignment_file = request.FILES['assignment_file']
+            # Check file size (2MB limit)
+            if assignment_file.size > 2 * 1024 * 1024:
+                messages.error(request, 'File size must be less than 2MB.')
+                subjects = teacher.subjects.all()
+                return render(request, 'academic/create_assignment.html', {
+                    'teacher': teacher,
+                    'subjects': subjects,
+                    'school': teacher.school
+                })
+            assignment.assignment_file = assignment_file
+        
+        assignment.save()
+        
+        # Create StudentAssignment records for all students in the school
+        students = Student.objects.filter(school=teacher.school)
+        for student in students:
+            StudentAssignment.objects.create(
+                assignment=assignment,
+                student=student
+            )
         
         messages.success(request, 'Assignment created successfully!')
         return redirect('academic:teacher_assignments')
@@ -142,6 +190,7 @@ def create_assignment(request):
         'subjects': subjects,
         'school': teacher.school
     })
+
 
 @login_required
 def create_assignment(request):
@@ -184,45 +233,117 @@ def create_assignment(request):
     })
 
 @login_required
+def students_by_class_subject(request):
+    class_id = request.GET.get('class_id')
+    subject_id = request.GET.get('subject_id')
+    
+    students = Student.objects.filter(
+        class_level_id=class_id,
+        elective_subjects_id=subject_id
+    ).select_related('user')
+    
+    student_data = []
+    for student in students:
+        student_data.append({
+            'id': student.id,
+            'full_name': student.user.get_full_name(),
+            'admission_number': student.admission_number,
+        })
+    
+    return JsonResponse({'students': student_data})
+
+
+def upload_scores_test(request):
+    """Simple test view to check if data is being passed correctly"""
+    teacher = request.user.teacher
+    school = teacher.school
+    
+    # Get classes and subjects
+    classes = ClassLevel.objects.filter(classsubject__teacher=teacher, school=school).distinct()
+    teacher_subjects = Subject.objects.filter(classsubject__teacher=teacher).distinct()
+    
+    context = {
+        'school': school,
+        'classes': classes,
+        'teacher_subjects': teacher_subjects,
+    }
+    
+    return render(request, 'academic/upload_scores_simple.html', context)
+
+@login_required
 def upload_scores(request):
-    teacher = get_object_or_404(Teacher, user=request.user)
-    
-    if request.method == 'POST':
-        student_id = request.POST.get('student')
-        subject_id = request.POST.get('subject')
-        exam_type = request.POST.get('exam_type')
-        score = request.POST.get('score')
-        max_score = request.POST.get('max_score', 100)
-        date_taken = request.POST.get('date_taken')
+    try:
+        teacher = request.user.teacher
+        school = teacher.school
         
-        student = get_object_or_404(Student, id=student_id, school=teacher.school)
-        subject = get_object_or_404(Subject, id=subject_id)
+        # Get classes and subjects for the teacher
+        classes = ClassLevel.objects.filter(classsubject__teacher=teacher, school=school).distinct()
+        teacher_subjects = Subject.objects.filter(classsubject__teacher=teacher).distinct()
         
-        # Create or update result
-        result, created = Result.objects.update_or_create(
-            student=student,
-            subject=subject,
-            exam_type=exam_type,
-            date_taken=date_taken,
-            defaults={
-                'score': score,
-                'max_score': max_score,
-                'recorded_by': teacher
-            }
-        )
+        students = []
+        selected_class_id = request.GET.get('class_id')
+        selected_subject_id = request.GET.get('subject_id')
         
-        messages.success(request, f'Score uploaded for {student.user.get_full_name()}!')
-        return redirect('academic:upload_scores')
-    
-    subjects = teacher.subjects.all()
-    students = Student.objects.filter(school=teacher.school)
-    
-    return render(request, 'academic/upload_scores.html', {
-        'teacher': teacher,
-        'subjects': subjects,
-        'students': students,
-        'school': teacher.school
-    })
+        if request.method == 'POST':
+            if 'upload_scores' in request.POST:
+                class_id = request.POST.get('class_level')
+                subject_id = request.POST.get('subject')
+                exam_type = request.POST.get('exam_type')
+                max_score = request.POST.get('max_score', 100)
+                date_taken = request.POST.get('date_taken')
+                
+                success_count = 0
+                for key, value in request.POST.items():
+                    if key.startswith('score_') and value:
+                        try:
+                            student_id = key.replace('score_', '')
+                            student = Student.objects.get(id=student_id, school=school)
+                            subject = Subject.objects.get(id=subject_id)
+                            
+                            # Create or update result - using Result model
+                            Result.objects.update_or_create(
+                                student=student,
+                                subject=subject,
+                                exam_type=exam_type,
+                                date_taken=date_taken,
+                                recorded_by=teacher,  # Use recorded_by instead of teacher
+                                defaults={
+                                    'score': value,
+                                    'max_score': max_score
+                                }
+                            )
+                            success_count += 1
+                        except Exception as e:
+                            messages.error(request, f'Error saving score: {str(e)}')
+                
+                messages.success(request, f'Successfully uploaded {success_count} scores!')
+                return redirect('academic:upload_scores')
+
+        # Load students if class and subject are selected
+        if selected_class_id and selected_subject_id:
+            selected_class = ClassLevel.objects.get(id=selected_class_id, school=school)
+            students = Student.objects.filter(class_level=selected_class, school=school).select_related('user')
+        
+        context = {
+            'school': school,
+            'classes': classes,
+            'teacher_subjects': teacher_subjects,
+            'students': students,
+        }
+        
+        return render(request, 'academic/upload_scores.html', context)
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        return render(request, 'academic/upload_scores.html', {
+            'school': None,
+            'classes': [],
+            'teacher_subjects': [],
+            'students': [],
+        })
+
+
+
 
 @login_required
 def teacher_subjects(request):
@@ -236,25 +357,374 @@ def teacher_subjects(request):
 
 @login_required
 def upload_scores(request):
+    try:
+        print("=== UPLOAD SCORES - DETAILED DEBUG ===")
+        
+        # Check user and teacher
+        print(f"User: {request.user.username}")
+        print(f"User type: {request.user.user_type}")
+        
+        if not hasattr(request.user, 'teacher'):
+            print("ERROR: User has no teacher attribute")
+            return render(request, 'academic/upload_scores.html', {
+                'school': None,
+                'classes': [],
+                'teacher_subjects': [],
+            })
+        
+        teacher = request.user.teacher
+        print(f"Teacher: {teacher.user.get_full_name()} (ID: {teacher.id})")
+        
+        school = teacher.school
+        print(f"School: {school.name} (ID: {school.id})")
+        
+        # Get classes and subjects for the teacher
+        classes = ClassLevel.objects.filter(
+            classsubject__teacher=teacher,
+            school=school
+        ).distinct()
+        
+        teacher_subjects = Subject.objects.filter(
+            classsubject__teacher=teacher
+        ).distinct()
+        
+        # Handle AJAX JSON request (from the new form)
+        if request.method == 'POST' and request.content_type == 'application/json':
+            try:
+                data = json.loads(request.body)
+                print("=== PROCESSING AJAX REQUEST ===")
+                print(f"Received data: {data}")
+                
+                class_level_id = data.get('class_level')
+                subject_id = data.get('subject')
+                exam_type = data.get('exam_type')
+                max_score = data.get('max_score')
+                date_taken = data.get('date_taken')
+                results_data = data.get('results', [])
+                
+                print(f"Class Level ID: {class_level_id}")
+                print(f"Subject ID: {subject_id}")
+                print(f"Exam Type: {exam_type}")
+                print(f"Max Score: {max_score}")
+                print(f"Date Taken: {date_taken}")
+                print(f"Number of results: {len(results_data)}")
+                
+                # Validate required fields
+                if not all([class_level_id, subject_id, exam_type, max_score, date_taken]):
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Missing required fields'
+                    })
+                
+                # Get subject
+                subject = get_object_or_404(Subject, id=subject_id)
+                
+                created_count = 0
+                errors = []
+                
+                for result_item in results_data:
+                    try:
+                        student_id = result_item.get('student_id')
+                        score_value = result_item.get('score')
+                        
+                        print(f"Processing student ID: {student_id}, score: {score_value}")
+                        
+                        if not student_id or score_value is None or score_value == '':
+                            errors.append(f"Missing student ID or score for one entry")
+                            continue
+                        
+                        # Get student object
+                        student = Student.objects.get(id=student_id)
+                        
+                        # Check if student belongs to the selected class
+                        if student.class_level.id != int(class_level_id):
+                            errors.append(f"Student {student.user.get_full_name()} is not in the selected class")
+                            continue
+                        
+                        # Check if result already exists (based on unique_together constraint)
+                        existing_result = Result.objects.filter(
+                            student=student,
+                            subject=subject,
+                            exam_type=exam_type,
+                            date_taken=date_taken
+                        ).first()
+                        
+                        if existing_result:
+                            # Update existing result
+                            existing_result.score = score_value
+                            existing_result.max_score = max_score
+                            existing_result.save()
+                            print(f"UPDATED Existing Result: {existing_result}")
+                        else:
+                            # Create new Result object
+                            result = Result.objects.create(
+                                student=student,
+                                subject=subject,
+                                exam_type=exam_type,
+                                score=score_value,
+                                max_score=max_score,
+                                date_taken=date_taken,
+                                recorded_by=teacher
+                            )
+                            print(f"CREATED New Result: {result}")
+                        
+                        created_count += 1
+                        
+                    except Student.DoesNotExist:
+                        error_msg = f"Student with ID {student_id} does not exist"
+                        errors.append(error_msg)
+                        print(f"ERROR: {error_msg}")
+                    except Exception as e:
+                        error_msg = f"Error creating result for student {student_id}: {str(e)}"
+                        errors.append(error_msg)
+                        print(f"ERROR: {error_msg}")
+                
+                print(f"Successfully processed {created_count} results")
+                print(f"Errors: {errors}")
+                
+                if errors:
+                    return JsonResponse({
+                        'success': False,
+                        'error': '; '.join(errors[:5]),  # Limit error message length
+                        'created_count': created_count,
+                        'total_attempted': len(results_data)
+                    })
+                else:
+                    return JsonResponse({
+                        'success': True,
+                        'message': f'Successfully uploaded {created_count} results',
+                        'created_count': created_count
+                    })
+                
+            except json.JSONDecodeError:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid JSON data'
+                })
+            except Exception as e:
+                print(f"Exception in AJAX processing: {str(e)}")
+                import traceback
+                print(traceback.format_exc())
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Server error: {str(e)}'
+                })
+        
+        # Handle regular form submission (old method - fallback)
+        elif request.method == 'POST':
+            print("=== PROCESSING REGULAR FORM SUBMISSION ===")
+            
+            # This handles the old form format if you still want to support it
+            student_id = request.POST.get('student')
+            subject_id = request.POST.get('subject')
+            exam_type = request.POST.get('exam_type')
+            score_value = request.POST.get('score')
+            max_score = request.POST.get('max_score')
+            date_taken = request.POST.get('date_taken')
+            
+            print(f"Regular form data - Student: {student_id}, Subject: {subject_id}")
+            
+            try:
+                student = Student.objects.get(id=student_id)
+                subject = Subject.objects.get(id=subject_id)
+                
+                # Create Result object
+                result = Result.objects.create(
+                    student=student,
+                    subject=subject,
+                    exam_type=exam_type,
+                    score=score_value,
+                    max_score=max_score,
+                    date_taken=date_taken,
+                    recorded_by=teacher
+                )
+                
+                print(f"SUCCESS: Created Result - {result}")
+                messages.success(request, f"Score uploaded successfully for {student.user.get_full_name()}")
+                
+            except Student.DoesNotExist:
+                error_msg = f"Student with ID {student_id} does not exist"
+                print(f"ERROR: {error_msg}")
+                messages.error(request, error_msg)
+            except Subject.DoesNotExist:
+                error_msg = f"Subject with ID {subject_id} does not exist"
+                print(f"ERROR: {error_msg}")
+                messages.error(request, error_msg)
+            except Exception as e:
+                error_msg = f"Error uploading score: {str(e)}"
+                print(f"ERROR: {error_msg}")
+                messages.error(request, error_msg)
+        
+
+        recent_results = Result.objects.filter(
+            recorded_by=teacher
+        ).select_related('student__user', 'subject', 'student__class_level').order_by('-date_taken')[:10]
+        # Prepare context for GET requests
+        context = {
+            'school': school,
+            'classes': classes,
+            'teacher_subjects': teacher_subjects,
+            'recent_results': recent_results,
+        }
+        
+        print("=== RENDERING TEMPLATE ===")
+        return render(request, 'academic/upload_scores.html', context)
+        
+    except Exception as e:
+        print(f"=== EXCEPTION in upload_scores ===")
+        print(f"Error: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        
+        # Return JSON error for AJAX requests
+        if request.method == 'POST' and request.content_type == 'application/json':
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+        
+        # Return regular error for normal requests
+        return render(request, 'academic/upload_scores.html', {
+            'school': None,
+            'classes': [],
+            'teacher_subjects': [],
+        })
+
+
+# API view for getting class students
+@login_required
+@require_http_methods(["GET"])
+def api_class_students(request, class_id):
+    """API endpoint to get students for a specific class"""
+    try:
+        print(f"=== API CLASS STUDENTS - Class ID: {class_id} ===")
+        
+        if not hasattr(request.user, 'teacher'):
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+        
+        teacher = request.user.teacher
+        class_level = get_object_or_404(ClassLevel, id=class_id, school=teacher.school)
+        
+        students = Student.objects.filter(
+            class_level=class_level,
+            school=teacher.school
+        ).select_related('user', 'class_level')
+        
+        students_data = []
+        for student in students:
+            students_data.append({
+                'id': student.id,
+                'full_name': student.user.get_full_name(),
+                'admission_number': getattr(student, 'admission_number', 'N/A'),
+                'class_name': student.class_level.name,
+            })
+        
+        print(f"Found {len(students_data)} students for class {class_level.name}")
+        
+        return JsonResponse({
+            'students': students_data,
+            'class_name': class_level.name,
+            'total_students': len(students_data)
+        })
+        
+    except Exception as e:
+        print(f"Error in api_class_students: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+# API view for getting class subjects
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_class_subjects(request, class_id):
+    """API endpoint to get subjects for a specific class taught by the teacher"""
+    try:
+        print(f"=== API CLASS SUBJECTS - Class ID: {class_id} ===")
+        
+        if not hasattr(request.user, 'teacher'):
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+        
+        teacher = request.user.teacher
+        class_level = get_object_or_404(ClassLevel, id=class_id, school=teacher.school)
+        
+        # Get subjects that this teacher teaches for this class
+        subjects = Subject.objects.filter(
+            classsubject__class_level=class_level,
+            classsubject__teacher=teacher
+        ).distinct()
+        
+        subjects_data = []
+        for subject in subjects:
+            subjects_data.append({
+                'id': subject.id,
+                'name': subject.name,
+                'code': getattr(subject, 'code', ''),
+            })
+        
+        print(f"Found {len(subjects_data)} subjects for class {class_level.name}")
+        
+        return JsonResponse({
+            'subjects': subjects_data,
+            'class_name': class_level.name,
+            'total_subjects': len(subjects_data)
+        })
+        
+    except Exception as e:
+        print(f"Error in api_class_subjects: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def view_results(request):
     teacher = get_object_or_404(Teacher, user=request.user)
+    school = teacher.school
+    
+    results = Result.objects.filter(recorded_by=teacher).select_related(
+        'student__user', 'subject', 'student__class_level'
+    )
+    
+    # Filters
+    class_id = request.GET.get('class_id')
+    subject_id = request.GET.get('subject_id')
+    exam_type = request.GET.get('exam_type')
+    
+    if class_id:
+        results = results.filter(student__class_level_id=class_id)
+    if subject_id:
+        results = results.filter(subject_id=subject_id)
+    if exam_type:
+        results = results.filter(exam_type=exam_type)
+    
+    # Filter options
+    classes = ClassLevel.objects.filter(school=school).distinct()
+    subjects = Subject.objects.filter(classsubject__teacher=teacher).distinct()
+    
+    context = {
+        'school': school,
+        'results': results.order_by('-date_taken'),
+        'classes': classes,
+        'subjects': subjects,
+        'selected_class': class_id,
+        'selected_subject': subject_id,
+        'selected_exam_type': exam_type,
+    }
+    return render(request, 'academic/view_results.html', context)
+
+@login_required
+def edit_result(request, result_id):
+    result = get_object_or_404(Result, id=result_id, recorded_by=request.user.teacher)
     
     if request.method == 'POST':
-        # Handle score upload logic
-        student_id = request.POST.get('student')
-        subject_id = request.POST.get('subject')
-        exam_type = request.POST.get('exam_type')
-        score = request.POST.get('score')
-        
-        # Add your score upload logic here
-        messages.success(request, 'Scores uploaded successfully!')
-        return redirect('academic:upload_scores')
+        result.score = request.POST.get('score')
+        result.max_score = request.POST.get('max_score')
+        result.exam_type = request.POST.get('exam_type')
+        result.date_taken = request.POST.get('date_taken')
+        result.save()
+        messages.success(request, "Result updated successfully")
+        return redirect('/academic/view-results/')
     
-    subjects = teacher.subjects.all()
-    # You'll need to get students based on the teacher's classes
-    return render(request, 'academic/upload_scores.html', {
-        'teacher': teacher,
-        'subjects': subjects
-    })
+    return render(request, 'academic/edit_result.html', {'result': result})
+
 
 @login_required
 def create_assignment(request):
@@ -328,18 +798,86 @@ def submit_assignment(request, assignment_id):
     })
 
 @login_required
-def student_results(request):
-    student = get_object_or_404(Student, user=request.user)
-    results = Result.objects.filter(student=student).order_by('-date_taken')
+def view_scores(request):
+    teacher = get_object_or_404(Teacher, user=request.user)
+    school = teacher.school
     
-    if request.user.user_type == 'student' and request.user != student.user:
-        messages.error(request, "You don't have permission to view these results.")
-        return redirect('academic:student_dashboard')
+    # Get all results for subjects this teacher recorded
+    results = Result.objects.filter(
+        recorded_by=teacher
+    ).select_related('student__user', 'subject', 'student__class_level').order_by('-date_taken')
+    
+    # Filter options
+    class_id = request.GET.get('class_id')
+    subject_id = request.GET.get('subject_id')
+    exam_type = request.GET.get('exam_type')
+    
+    if class_id:
+        results = results.filter(student__class_level_id=class_id)
+    
+    if subject_id:
+        results = results.filter(subject_id=subject_id)
+    
+    if exam_type:
+        results = results.filter(exam_type=exam_type)
+    
+    # Get filter options
+    classes = ClassLevel.objects.filter(
+        classsubject__teacher=teacher,
+        school=school
+    ).distinct()
+    
+    subjects = Subject.objects.filter(
+        classsubject__teacher=teacher
+    ).distinct()
+    
+    context = {
+        'school': school,
+        'scores': results,  # Now passing results instead of scores
+        'classes': classes,
+        'subjects': subjects,
+        'selected_class_id': class_id,
+        'selected_subject_id': subject_id,
+        'selected_exam_type': exam_type,
+    }
+    return render(request, 'academic/view_scores.html', context)
 
-    return render(request, 'academic/student_results.html', {
+
+@login_required
+def student_dashboard(request):
+    if not hasattr(request.user, 'student'):
+        messages.error(request, "You must be a student to access this page.")
+        return redirect('core:homepage')
+    
+    student = request.user.student
+    school = student.school
+    
+    # Get recent results for the student - using Result model
+    recent_scores = Result.objects.filter(student=student).select_related('subject').order_by('-date_taken')[:5]
+    
+    # Get subject count
+    subject_count = Subject.objects.filter(result__student=student).distinct().count()
+    
+    # Calculate average score
+    results = Result.objects.filter(student=student)
+    if results.exists():
+        average_score = sum((result.score / result.max_score * 100) for result in results) / results.count()
+        average_score = round(average_score, 1)
+    else:
+        average_score = 0
+    
+    # Get pending assignments count
+    assignments_count = StudentAssignment.objects.filter(student=student, is_submitted=False).count()
+    
+    context = {
+        'school': school,
         'student': student,
-        'results': results
-    })
+        'recent_scores': recent_scores,
+        'subject_count': subject_count,
+        'average_score': average_score,
+        'assignments_count': assignments_count,
+    }
+    return render(request, 'academic/student_dashboard.html', context)
 
 
 @login_required
@@ -377,25 +915,99 @@ def submit_assignment(request, assignment_id):
         'school': student.school
     })
 
+
 @login_required
-def student_results(request):
-    student = get_object_or_404(Student, user=request.user)
-    results = Result.objects.filter(student=student).select_related('subject').order_by('-date_taken')
+def student_results_admin(request, student_id):
+    """Admin view for viewing any student's results"""
+    if request.user.user_type not in ['senior_admin', 'junior_admin']:
+        messages.error(request, "You don't have permission to view other students' results.")
+        return redirect('core:homepage')
     
-    # Calculate averages
-    if results:
-        total_score = sum(result.score for result in results)
-        total_max_score = sum(result.max_score for result in results)
-        average_percentage = (total_score / total_max_score) * 100 if total_max_score > 0 else 0
+    student = get_object_or_404(Student, id=student_id)
+    school = student.school
+    
+    # Get all results for this student - using Result model
+    results = Result.objects.filter(student=student).select_related('subject', 'recorded_by__user').order_by('-date_taken')
+    
+    # Filter options
+    subject_id = request.GET.get('subject_id')
+    exam_type = request.GET.get('exam_type')
+    
+    if subject_id:
+        results = results.filter(subject_id=subject_id)
+    
+    if exam_type:
+        results = results.filter(exam_type=exam_type)
+    
+    # Get unique subjects for filter dropdown
+    subjects = Subject.objects.filter(result__student=student).distinct()
+    
+    # Calculate statistics
+    total_results = results.count()
+    if total_results > 0:
+        average_percentage = sum((result.score / result.max_score * 100) for result in results) / total_results
     else:
         average_percentage = 0
     
-    return render(request, 'academic/student_results.html', {
+    context = {
+        'school': school,
         'student': student,
-        'results': results,
-        'average_percentage': average_percentage,
-        'school': student.school
-    })
+        'scores': results,  # Still call it 'scores' in template for consistency
+        'subjects': subjects,
+        'selected_subject_id': subject_id,
+        'selected_exam_type': exam_type,
+        'total_scores': total_results,
+        'average_percentage': round(average_percentage, 1),
+        'is_admin_view': True,
+    }
+    return render(request, 'academic/student_results.html', context)
+
+
+@login_required
+def student_results(request):
+    """View for students to see their own results"""
+    if not hasattr(request.user, 'student'):
+        messages.error(request, "You must be a student to view results.")
+        return redirect('core:homepage')
+    
+    student = request.user.student
+    school = student.school
+    
+    # Get all results for this student - using Result model
+    results = Result.objects.filter(student=student).select_related('subject', 'recorded_by__user').order_by('-date_taken')
+    
+    # Filter options
+    subject_id = request.GET.get('subject_id')
+    exam_type = request.GET.get('exam_type')
+    
+    if subject_id:
+        results = results.filter(subject_id=subject_id)
+    
+    if exam_type:
+        results = results.filter(exam_type=exam_type)
+    
+    # Get unique subjects for filter dropdown
+    subjects = Subject.objects.filter(result__student=student).distinct()
+    
+    # Calculate statistics
+    total_results = results.count()
+    if total_results > 0:
+        average_percentage = sum((result.score / result.max_score * 100) for result in results) / total_results
+    else:
+        average_percentage = 0
+    
+    context = {
+        'school': school,
+        'student': student,
+        'scores': results,  # Still call it 'scores' in template
+        'subjects': subjects,
+        'selected_subject_id': subject_id,
+        'selected_exam_type': exam_type,
+        'total_scores': total_results,
+        'average_percentage': round(average_percentage, 1),
+        'is_admin_view': False,
+    }
+    return render(request, 'academic/student_results.html', context)
 
 @login_required
 def student_fees(request):
@@ -422,3 +1034,23 @@ def student_fees(request):
         'total_balance': total_balance,
         'school': student.school
     })
+
+# academic/views.py
+@login_required
+def assignment_detail(request, assignment_id):
+    try:
+        assignment = get_object_or_404(Assignment, id=assignment_id)
+        student_assignment = get_object_or_404(
+            StudentAssignment, 
+            assignment=assignment, 
+            student__user=request.user
+        )
+        
+        return render(request, 'academic/assignment_detail.html', {
+            'assignment': assignment,
+            'student_assignment': student_assignment,
+            'now': timezone.now()
+        })
+    except Exception as e:
+        messages.error(request, f"Error loading assignment: {str(e)}")
+        return redirect('academic:student_assignments')

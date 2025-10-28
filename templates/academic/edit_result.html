@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Edit Result{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header"><h4>Edit Result</h4></div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label>Student</label>
+                    <input type="text" class="form-control" value="{{ result.student.user.get_full_name }}" readonly>
+                </div>
+                <div class="mb-3">
+                    <label>Score</label>
+                    <input type="number" name="score" class="form-control" value="{{ result.score }}" required>
+                </div>
+                <div class="mb-3">
+                    <label>Max Score</label>
+                    <input type="number" name="max_score" class="form-control" value="{{ result.max_score }}" required>
+                </div>
+                <div class="mb-3">
+                    <label>Exam Type</label>
+                    <select name="exam_type" class="form-control">
+                        {% for value, label in result.EXAM_TYPES %}
+                        <option value="{{ value }}" {% if result.exam_type == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label>Date Taken</label>
+                    <input type="date" name="date_taken" class="form-control" value="{{ result.date_taken|date:'Y-m-d' }}" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Result</button>
+                <a href="{% url 'academic:view_results' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

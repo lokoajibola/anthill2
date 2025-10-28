@@ -84,7 +84,7 @@ class User(AbstractUser):
 
 class Teacher(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    school = models.ForeignKey('schools.School', on_delete=models.CASCADE, null = True)  # String reference
+    school = models.ForeignKey('schools.School', on_delete=models.CASCADE) #, null = True)  # String reference
     subjects = models.ManyToManyField('academic.Subject', blank=True)  # String reference
     date_joined = models.DateField(auto_now_add=True)
     

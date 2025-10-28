@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% load custom_filters %}
+
+{% block title %}Manage Teachers - {{ class_level.name }} - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Manage Teachers - {{ class_level.name }}</h2>
+        <a href="{% url 'schools:manage_classes' %}" class="btn btn-outline-secondary">Back to Classes</a>
+    </div>
+
+    <!-- Assign New Teacher -->
+    {% if is_senior_admin %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Assign New Teacher</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Select Teacher</label>
+                            <select name="teacher" class="form-control" required>
+                                <option value="">Choose a teacher...</option>
+                                {% for teacher in all_teachers %}
+                                <option value="{{ teacher.id }}">{{ teacher.user.get_full_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Assign Subjects</label>
+                            <select name="subjects" class="form-control" multiple required>
+                                {% for subject in available_subjects %}
+                                <option value="{{ subject.id }}">{{ subject.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple subjects</small>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="submit" name="assign_teacher" class="btn btn-primary w-100">Assign</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Assigned Teachers -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Assigned Teachers</h5>
+        </div>
+        <div class="card-body">
+            {% if assigned_teachers %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Teacher Name</th>
+                            <th>Assigned Subjects</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for teacher in assigned_teachers %}
+                        <tr>
+                            <td>
+                                <strong>{{ teacher.user.get_full_name }}</strong><br>
+                                <small class="text-muted">{{ teacher.user.email }}</small>
+                            </td>
+                            <td>
+                                {% if teacher_subjects|get_item:teacher.id %}
+                                    {% for subject in teacher_subjects|get_item:teacher.id %}
+                                    <span class="badge bg-primary me-1 mb-1">
+                                        {{ subject.name }}
+                                        {% if is_senior_admin %}
+                                        <form method="post" class="d-inline" onsubmit="return confirm('Remove teacher from {{ subject.name }}?')">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="teacher_id" value="{{ teacher.id }}">
+                                            <input type="hidden" name="subject_id" value="{{ subject.id }}">
+                                            <button type="submit" name="remove_subject" class="btn-close btn-close-white" style="font-size: 0.7em;"></button>
+                                        </form>
+                                        {% endif %}
+                                    </span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">No subjects assigned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if is_senior_admin %}
+                                <form method="post" onsubmit="return confirm('Remove this teacher from all subjects in this class?')">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="teacher_id" value="{{ teacher.id }}">
+                                    <button type="submit" name="remove_teacher" class="btn btn-sm btn-outline-danger">Remove from Class</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                No teachers assigned to this class yet.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.badge .btn-close {
+    margin-left: 4px;
+    opacity: 0.7;
+}
+.badge .btn-close:hover {
+    opacity: 1;
+}
+</style>
+{% endblock %}

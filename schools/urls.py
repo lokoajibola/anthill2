@@ -27,11 +27,13 @@ urlpatterns = [
     path('homepage/edit/', views.edit_school_homepage, name='edit_homepage'),
     path('fees/management/', views.fee_management, name='fee_management'),
     path('fees/create/', views.create_fees, name='create_fees'),
+    
     # path('fees/', views.fee_management, name='fee_management'),
     path('analytics/', views.school_analytics, name='analytics'),
     path('payments/', views.payment_history, name='payment_history'),
     path('upgrade/', views.upgrade_subscription, name='upgrade_subscription'),
     path('admin-analytics/', views.admin_analytics, name='admin_analytics'),
     # Move school_homepage to the bottom since it's a catch-all
+    path('classes/<int:class_id>/teachers/', views.manage_class_teachers, name='manage_class_teachers'),
     path('<int:school_id>/', views.school_homepage, name='school_homepage'),
 ]

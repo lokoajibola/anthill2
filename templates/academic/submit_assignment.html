@@ -2,53 +2,61 @@
 
 {% block title %}Submit Assignment - {{ school.name }}{% endblock %}
 
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'users:student_dashboard' %}">Student Dashboard</a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="{% url 'academic:student_assignments' %}">My Assignments</a>
+            <a class="nav-link" href="{% url 'users:logout' %}">Logout</a>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header">
-                    <h4 class="mb-0">Submit Assignment: {{ student_assignment.assignment.title }}</h4>
+                    <h4 class="mb-0">Submit Assignment</h4>
                 </div>
                 <div class="card-body">
-                    <!-- Assignment Details -->
-                    <div class="card mb-4">
-                        <div class="card-body">
-                            <h5>Assignment Details</h5>
-                            <p><strong>Subject:</strong> {{ student_assignment.assignment.subject.name }}</p>
-                            <p><strong>Due Date:</strong> {{ student_assignment.assignment.due_date|date:"M d, Y H:i" }}</p>
-                            <p><strong>Description:</strong> {{ student_assignment.assignment.description }}</p>
-                            <p><strong>Max Score:</strong> {{ student_assignment.assignment.max_score }}</p>
-                        </div>
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <div class="assignment-details mb-4">
+                        <h5>{{ student_assignment.assignment.title }}</h5>
+                        <p><strong>Subject:</strong> {{ student_assignment.assignment.subject.name }}</p>
+                        <p><strong>Due Date:</strong> {{ student_assignment.assignment.due_date|date:"M d, Y H:i" }}</p>
+                        <p><strong>Description:</strong> {{ student_assignment.assignment.description }}</p>
+                        
+                        {% if student_assignment.assignment.assignment_file %}
+                        <p>
+                            <strong>Assignment File:</strong> 
+                            <a href="{{ student_assignment.assignment.assignment_file.url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                Download Assignment File
+                            </a>
+                        </p>
+                        {% endif %}
                     </div>
-
-                    <!-- Submission Form -->
+                    
                     <form method="post" enctype="multipart/form-data">
                         {% csrf_token %}
                         
                         <div class="mb-3">
-                            <label class="form-label">Your Answer/Submission Text</label>
-                            <textarea name="submitted_text" class="form-control" rows="6" placeholder="Type your assignment answer here...">{{ student_assignment.submitted_text }}</textarea>
+                            <label class="form-label">Upload Your Submission *</label>
+                            <input type="file" name="submitted_file" class="form-control" required accept=".pdf,.doc,.docx,.txt,.zip,.jpg,.png">
+                            <small class="text-muted">Allowed formats: PDF, DOC, DOCX, TXT, ZIP, JPG, PNG (Max 2MB)</small>
                         </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">Upload File (Optional)</label>
-                            <input type="file" name="submitted_file" class="form-control" accept=".pdf,.doc,.docx,.txt,.jpg,.png">
-                            {% if student_assignment.submitted_file %}
-                            <small class="text-muted">Current file: <a href="{{ student_assignment.submitted_file.url }}" target="_blank">View uploaded file</a></small>
-                            {% endif %}
-                        </div>
-
-                        <div class="alert alert-info">
-                            <h6>Submission Guidelines</h6>
-                            <ul class="mb-0">
-                                <li>You can submit both text and file upload</li>
-                                <li>Maximum file size: 10MB</li>
-                                <li>Allowed formats: PDF, DOC, DOCX, TXT, JPG, PNG</li>
-                                <li>You can resubmit before the due date</li>
-                            </ul>
-                        </div>
-
+                        
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-success">Submit Assignment</button>
                             <a href="{% url 'academic:student_assignments' %}" class="btn btn-secondary">Cancel</a>

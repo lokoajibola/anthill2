@@ -13,6 +13,7 @@ from django.contrib.auth import logout
 from users.forms import SubjectForm
 from users.forms import UserProfileForm
 from datetime import timedelta
+from decimal import Decimal
 
 
 @login_required
@@ -222,28 +223,54 @@ def create_user(request, user_type):
 def manage_classes(request):
     school_admin = get_object_or_404(SchoolAdmin, user=request.user)
     school = school_admin.school
-    classes = ClassLevel.objects.filter(school=school)
     
-    return render(request, 'schools/manage_classes.html', {
+    print(f"=== MANAGE CLASSES DEBUG ===")
+    print(f"User: {request.user.username}")
+    print(f"User type: {request.user.user_type}")
+    print(f"School Admin: {school_admin}")
+    print(f"Is Senior Admin: {school_admin.is_senior}")
+    
+    classes = ClassLevel.objects.filter(school=school)
+    print(f"Classes found: {classes.count()}")
+    
+    context = {
         'school': school,
-        'classes': classes
-    })
+        'classes': classes,
+        'is_senior_admin': school_admin.is_senior,  # Make sure this is passed
+    }
+    
+    print(f"Context is_senior_admin: {school_admin.is_senior}")
+    return render(request, 'schools/manage_classes.html', context)
+
 
 @login_required
 def create_class(request):
     school_admin = get_object_or_404(SchoolAdmin, user=request.user)
     school = school_admin.school
     
+    if not school_admin.is_senior:
+        messages.error(request, "Only senior admins can create classes.")
+        return redirect('schools:manage_classes')
+    
     if request.method == 'POST':
         name = request.POST.get('name')
         level = request.POST.get('level')
+        # Remove description since model doesn't have it
+        # description = request.POST.get('description', '')
         
+        # Check if class with same name already exists in this school
+        if ClassLevel.objects.filter(name=name, school=school).exists():
+            messages.error(request, f'A class with name "{name}" already exists in this school.')
+            return render(request, 'schools/create_class.html', {'school': school})
+        
+        # Create the class without description
         ClassLevel.objects.create(
             name=name,
             level=level,
+            # description=description,  # Remove this
             school=school
         )
-        messages.success(request, 'Class created successfully!')
+        messages.success(request, f'Class "{name}" created successfully!')
         return redirect('schools:manage_classes')
     
     return render(request, 'schools/create_class.html', {
@@ -453,6 +480,17 @@ def class_subjects(request, class_id):
             messages.success(request, 'Subject removed from class!')
             return redirect('schools:class_subjects', class_id=class_id)
         
+        # Update subject type (compulsory/elective)
+        if 'subject_id' in request.POST and 'is_compulsory' in request.POST:
+            subject_id = request.POST.get('subject_id')
+            is_compulsory = request.POST.get('is_compulsory') == 'on'
+            
+            class_subject = get_object_or_404(ClassSubject, id=subject_id, class_level=class_level)
+            class_subject.is_compulsory = is_compulsory
+            class_subject.save()
+            messages.success(request, f'{class_subject.subject.name} updated to {"Compulsory" if is_compulsory else "Elective"}!')
+            return redirect('schools:class_subjects', class_id=class_id)
+        
         # Add subjects to class AND assign to teacher
         subject_id = request.POST.get('subject')
         is_compulsory = request.POST.get('is_compulsory') == 'on'
@@ -492,6 +530,101 @@ def class_subjects(request, class_id):
         'teachers': teachers
     })
 
+@login_required
+def manage_class_teachers(request, class_id):
+    school_admin = get_object_or_404(SchoolAdmin, user=request.user)
+    class_level = get_object_or_404(ClassLevel, id=class_id, school=school_admin.school)
+    
+    # Get all teachers in the school
+    all_teachers = Teacher.objects.filter(school=school_admin.school).select_related('user')
+    
+    # Get currently assigned teachers for this class
+    assigned_teachers = Teacher.objects.filter(
+        classsubject__class_level=class_level
+    ).distinct().select_related('user')
+    
+    # Get assigned subjects for each teacher in this class
+    teacher_subjects = {}
+    for teacher in assigned_teachers:
+        subjects = Subject.objects.filter(
+            classsubject__class_level=class_level,
+            classsubject__teacher=teacher
+        )
+        teacher_subjects[teacher.id] = subjects
+    
+    if request.method == 'POST':
+        if 'assign_teacher' in request.POST:
+            teacher_id = request.POST.get('teacher')
+            subject_ids = request.POST.getlist('subjects')
+            
+            if teacher_id and subject_ids:
+                teacher = get_object_or_404(Teacher, id=teacher_id, school=school_admin.school)
+                
+                # Assign subjects to teacher for this class
+                for subject_id in subject_ids:
+                    subject = get_object_or_404(Subject, id=subject_id)
+                    
+                    # Create or update ClassSubject
+                    ClassSubject.objects.update_or_create(
+                        class_level=class_level,
+                        subject=subject,
+                        defaults={'teacher': teacher}
+                    )
+                    
+                    # Also add to teacher's direct subjects
+                    teacher.subjects.add(subject)
+                
+                messages.success(request, f'Teacher {teacher.user.get_full_name()} assigned to class!')
+                return redirect('schools:manage_class_teachers', class_id=class_id)
+                
+        elif 'remove_teacher' in request.POST:
+            teacher_id = request.POST.get('teacher_id')
+            teacher = get_object_or_404(Teacher, id=teacher_id, school=school_admin.school)
+            
+            # Remove teacher from all subjects in this class
+            ClassSubject.objects.filter(
+                class_level=class_level,
+                teacher=teacher
+            ).update(teacher=None)
+            
+            messages.success(request, f'Teacher {teacher.user.get_full_name()} removed from class!')
+            return redirect('schools:manage_class_teachers', class_id=class_id)
+        
+        elif 'remove_subject' in request.POST:
+            teacher_id = request.POST.get('teacher_id')
+            subject_id = request.POST.get('subject_id')
+            
+            teacher = get_object_or_404(Teacher, id=teacher_id, school=school_admin.school)
+            subject = get_object_or_404(Subject, id=subject_id)
+            
+            # Remove teacher from specific subject in this class
+            ClassSubject.objects.filter(
+                class_level=class_level,
+                subject=subject,
+                teacher=teacher
+            ).update(teacher=None)
+            
+            messages.success(request, f'Teacher removed from {subject.name}!')
+            return redirect('schools:manage_class_teachers', class_id=class_id)
+    
+    # Get available subjects for this class (not yet assigned to any teacher)
+    assigned_subject_ids = ClassSubject.objects.filter(
+        class_level=class_level,
+        teacher__isnull=False
+    ).values_list('subject_id', flat=True)
+    
+    available_subjects = Subject.objects.exclude(id__in=assigned_subject_ids)
+    
+    context = {
+        'school': school_admin.school,
+        'class_level': class_level,
+        'all_teachers': all_teachers,
+        'assigned_teachers': assigned_teachers,
+        'teacher_subjects': teacher_subjects,
+        'available_subjects': available_subjects,
+        'is_senior_admin': school_admin.is_senior,
+    }
+    return render(request, 'schools/manage_class_teachers.html', context)
 
 @login_required
 def manage_class_students(request, class_id):
@@ -1044,8 +1177,8 @@ def upgrade_subscription(request):
     })
 
 
-@login_required
-def assign_subjects_to_teacher(request, teacher_id):
+# @login_required
+# def assign_subjects_to_teacher(request, teacher_id):
     school_admin = get_object_or_404(SchoolAdmin, user=request.user)
     
     if not school_admin.is_senior:
