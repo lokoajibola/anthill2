@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from .models import School, SchoolAdmin, Payment, Subscription, StudentFee
+from .models import School, SchoolAdmin, Payment, Subscription, StudentFee, GalleryImage, Article, AdmissionInfo
 from django.contrib import messages
 from django.db.models import Q, Count
 from users.models import User, Teacher, Student
@@ -14,7 +14,7 @@ from users.forms import SubjectForm
 from users.forms import UserProfileForm
 from datetime import timedelta
 from decimal import Decimal
-
+from django.http import JsonResponse
 
 @login_required
 def edit_school_homepage(request):
@@ -34,6 +34,10 @@ def edit_school_homepage(request):
         school.email = request.POST.get('email', school.email)
         school.address = request.POST.get('address', school.address)
         
+        # Add about_text if the field exists
+        if hasattr(school, 'about_text'):
+            school.about_text = request.POST.get('about_text', school.about_text)
+        
         if 'logo' in request.FILES:
             school.logo = request.FILES['logo']
         
@@ -46,11 +50,20 @@ def edit_school_homepage(request):
         'is_senior_admin': school_admin.is_senior
     })
 
+
 def school_homepage(request, school_id):
     school = get_object_or_404(School, id=school_id)
     
+    # Get all the data for homepage
+    gallery_images = GalleryImage.objects.filter(school=school)
+    articles = Article.objects.filter(school=school).order_by('-created_at')
+    admission_info = AdmissionInfo.objects.filter(school=school).first()
+    
     return render(request, 'schools/school_homepage.html', {
-        'school': school
+        'school': school,
+        'gallery_images': gallery_images,
+        'articles': articles,
+        'admission_info': admission_info
     })
 
 
@@ -737,28 +750,46 @@ def manage_users(request):
     return render(request, 'schools/manage_users.html', context)
 
 @login_required
-def edit_school_homepage(request):
-    school_admin = get_object_or_404(SchoolAdmin, user=request.user)
-    school = school_admin.school
-    
+def verify_payment(request):
     if request.method == 'POST':
-        # Handle school info update
-        school.motto = request.POST.get('motto', school.motto)
-        school.vision = request.POST.get('vision', school.vision)
-        school.mission = request.POST.get('mission', school.mission)
-        school.primary_color = request.POST.get('primary_color', school.primary_color)
+        data = json.loads(request.body)
+        reference = data.get('reference')
+        amount = data.get('amount')
+        description = data.get('description')
         
-        if 'logo' in request.FILES:
-            school.logo = request.FILES['logo']
+        # Verify with Paystack
+        headers = {'Authorization': f'Bearer {settings.PAYSTACK_SECRET_KEY}'}
+        response = requests.get(f'https://api.paystack.co/transaction/verify/{reference}', headers=headers)
         
-        school.save()
-        messages.success(request, 'School information updated successfully!')
-        return redirect('schools:edit_homepage')
-    
-    return render(request, 'schools/edit_homepage.html', {
-        'school': school
-    })
-
+        if response.status_code == 200:
+            result = response.json()
+            if result['data']['status'] == 'success':
+                school = request.user.schooladmin.school
+                subscription = Subscription.objects.get(school=school)
+                
+                # Calculate days based on amount
+                if amount == 18000:
+                    days = 730  # 2 years
+                else:
+                    days = 365  # 1 year
+                
+                # Extend subscription
+                subscription.end_date = subscription.end_date + timezone.timedelta(days=days)
+                subscription.save()
+                
+                # Record payment
+                Payment.objects.create(
+                    school=school,
+                    amount=amount,
+                    status='completed',
+                    payment_date=timezone.now(),
+                    description=description,
+                    reference=reference
+                )
+                
+                return JsonResponse({'success': True})
+        
+        return JsonResponse({'success': False, 'error': 'Payment verification failed'})
 
 @login_required
 def user_profile(request, user_type, user_id):
@@ -1035,28 +1066,81 @@ def edit_user(request, user_id):
     })
 
 @login_required
-def delete_user(request, user_id):
+def add_article(request):
+    if request.method == 'POST':
+        school_admin = get_object_or_404(SchoolAdmin, user=request.user)
+        title = request.POST.get('title')
+        content = request.POST.get('content')
+        
+        Article.objects.create(
+            school=school_admin.school,
+            title=title,
+            content=content,
+            author=request.user
+        )
+        messages.success(request, 'Article published!')
+    return redirect('schools:edit_homepage')
+
+@login_required
+def manage_about(request):
     school_admin = get_object_or_404(SchoolAdmin, user=request.user)
+    school = school_admin.school
     
-    if not school_admin.is_senior:
-        messages.error(request, "Only senior admins can delete users.")
-        return redirect('schools:dashboard')
+    if request.method == 'POST':
+        school.about_text = request.POST.get('about_text')
+        school.vision = request.POST.get('vision')
+        school.mission = request.POST.get('mission')
+        school.motto = request.POST.get('motto')
+        school.save()
+        messages.success(request, 'About us information updated successfully!')
+        return redirect('schools:manage_about')
     
-    user = get_object_or_404(User, id=user_id)
+    return render(request, 'schools/manage_about_us.html', {
+        'school': school,
+        'is_senior_admin': school_admin.is_senior
+    })
+
+@login_required
+def manage_news(request):
+    school_admin = get_object_or_404(SchoolAdmin, user=request.user)
+    school = school_admin.school
+    articles = Article.objects.filter(school=school).order_by('-created_at')
     
-    # Ensure user belongs to the same school and is not the current user
-    if user == request.user:
-        messages.error(request, "You cannot delete your own account.")
-        return redirect('schools:manage_users')
+    return render(request, 'schools/manage_news.html', {
+        'school': school,
+        'articles': articles,
+        'is_senior_admin': school_admin.is_senior
+    })
+
+@login_required
+def edit_article(request, article_id):
+    article = get_object_or_404(Article, id=article_id, school=request.user.schooladmin.school)
     
-    user_name = user.get_full_name()
-    user_type = user.user_type
+    if request.method == 'POST':
+        article.title = request.POST.get('title')
+        article.content = request.POST.get('content')
+        article.save()
+        messages.success(request, 'Article updated successfully!')
     
-    # Delete the user (this will cascade to related records)
-    user.delete()
-    
-    messages.success(request, f'{user_type.title()} {user_name} deleted successfully!')
-    return redirect('schools:manage_users')
+    return redirect('schools:manage_news')
+
+@login_required
+def delete_article(request, article_id):
+    article = get_object_or_404(Article, id=article_id, school=request.user.schooladmin.school)
+    article.delete()
+    messages.success(request, 'Article deleted successfully!')
+    return redirect('schools:manage_news')
+
+# @login_required
+# def update_about(request):
+#     if request.method == 'POST':
+#         school_admin = get_object_or_404(SchoolAdmin, user=request.user)
+#         school = school_admin.school
+#         school.about_text = request.POST.get('about_text')
+#         school.save()
+#         messages.success(request, 'About us updated!')
+#     return redirect('schools:edit_homepage')
+
 
 def user_logout(request):
     logout(request)
@@ -1125,6 +1209,28 @@ def school_analytics(request):
         'is_senior_admin': school_admin.is_senior,
     }
     return render(request, 'schools/school_analytics.html', context)
+
+@login_required
+def make_payment(request):
+    school_admin = get_object_or_404(SchoolAdmin, user=request.user)
+    school = school_admin.school
+    
+    try:
+        subscription = Subscription.objects.get(school=school)
+    except Subscription.DoesNotExist:
+        subscription = Subscription.objects.create(
+            school=school,
+            start_date=timezone.now().date(),
+            end_date=timezone.now().date() + timezone.timedelta(days=365),
+            is_active=True
+        )
+    
+    context = {
+        'school': school,
+        'subscription': subscription,
+        'is_senior_admin': school_admin.is_senior,
+    }
+    return render(request, 'schools/make_payment.html', context)
 
 @login_required
 def payment_history(request):
@@ -1208,7 +1314,33 @@ def upgrade_subscription(request):
         'school': school_admin.school
     })
 
-
+@login_required
+def delete_user(request, user_type, user_id):
+    if request.method == 'POST':
+        try:
+            school_admin = request.user.schooladmin
+            school = school_admin.school
+            
+            if user_type == 'teacher':
+                user = get_object_or_404(Teacher, id=user_id, school=school)
+            elif user_type == 'student':
+                user = get_object_or_404(Student, id=user_id, school=school)
+            elif user_type == 'admin':
+                user = get_object_or_404(SchoolAdmin, id=user_id, school=school)
+            else:
+                return JsonResponse({'error': 'Invalid user type'}, status=400)
+            
+            # Delete the associated User object
+            user_account = user.user
+            user.delete()
+            user_account.delete()
+            
+            return JsonResponse({'success': True})
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
 
 @login_required
 def assign_subjects_to_teacher(request, teacher_id):
@@ -1232,3 +1364,26 @@ def assign_subjects_to_teacher(request, teacher_id):
         'subjects': subjects,
         'school': school_admin.school
     })
+
+
+@login_required
+def mark_fee_paid(request, student_id):
+    if request.method == 'POST':
+        try:
+            student = get_object_or_404(Student, id=student_id, school=request.user.schooladmin.school)
+            fee_record = StudentFee.objects.get(student=student)
+            
+            # Set balance to 0 and mark as paid
+            fee_record.total_paid = fee_record.total_due
+            fee_record.balance = 0
+            fee_record.status = 'Paid'
+            fee_record.save()
+            
+            return JsonResponse({'success': True})
+            
+        except StudentFee.DoesNotExist:
+            return JsonResponse({'error': 'Fee record not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)

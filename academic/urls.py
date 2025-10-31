@@ -8,14 +8,19 @@ urlpatterns = [
     path('teacher/subjects/', views.teacher_subjects, name='teacher_subjects'),
     path('teacher/assignments/', views.teacher_assignments, name='teacher_assignments'),
     path('teacher/assignments/create/', views.create_assignment, name='create_assignment'),
-    path('teacher/assignments/<int:assignment_id>/edit/', views.edit_assignment, name='edit_assignment'),
-    
+    # path('teacher/assignments/<int:assignment_id>/edit/', views.edit_assignment, name='edit_assignment'),
+    path('assignment/<int:assignment_id>/submissions/', views.assignment_submissions, name='assignment_submissions'),
+    path('assignment/<int:assignment_id>/edit/', views.edit_assignment, name='edit_assignment'),
+    path('assignment/<int:assignment_id>/delete/', views.delete_assignment, name='delete_assignment'),
+
     path('upload-scores/', views.upload_scores, name='upload_scores'),
     path('teacher/view-scores/', views.view_scores, name='view_scores'),
     path('teacher/students/', views.teacher_students, name='teacher_students'),
     path('view-results/', views.view_results, name='view_results'),
     path('edit-result/<int:result_id>/', views.edit_result, name='edit_result'),
-    
+    path('subject-results-spreadsheet/', views.subject_results_spreadsheet, name='subject_results_spreadsheet'),
+    path('save-spreadsheet-results/', views.save_spreadsheet_results, name='save_spreadsheet_results'),
+        
     
     
     # ===== STUDENT URLS =====
@@ -28,12 +33,16 @@ urlpatterns = [
     
     # ===== ADMIN/OTHER URLS =====
     path('student/results/<int:student_id>/', views.student_results_admin, name='student_results_admin'),  # Admin viewing any student
+    path('admin/student/<int:student_id>/results/', views.admin_student_results, name='admin_student_results'),
     
     # ===== API ENDPOINTS =====
     path('api/class-subjects/<int:class_id>/', views.api_class_subjects, name='api_class_subjects'),
     path('api/class-students/<int:class_id>/', views.api_class_students, name='api_class_students'),
     path('api/students-by-class-subject/', views.students_by_class_subject, name='students_by_class_subject'),
-    
+    path('api/subject-students/<int:subject_id>/', views.api_subject_students, name='api_subject_students'),
+    path('api/load-existing-scores/', views.api_load_existing_scores, name='api_load_existing_scores'),
+
     # ===== TEST/DEBUG URLS =====
     path('upload-scores-test/', views.upload_scores_test, name='upload_scores_test'),
+    path('delete-result/<int:result_id>/', views.delete_result, name='delete_result'),
 ]

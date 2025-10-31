@@ -7,6 +7,14 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>Fee Management</h2>
         {% if is_senior_admin %}
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <form method="get" class="d-flex">
+                    <input type="text" name="q" class="form-control me-2" placeholder="Search by student name..." value="{{ request.GET.q }}">
+                    <button type="submit" class="btn btn-outline-primary">Search</button>
+                </form>
+            </div>
+        </div>
         <a href="{% url 'schools:create_fees' %}" class="btn btn-primary">Create Fees</a>
         {% endif %}
     </div>
@@ -99,7 +107,9 @@
                             <td>
                                 <a href="{% url 'schools:student_fee_details' fee.student.id %}" class="btn btn-sm btn-outline-primary">View</a>
                                 {% if is_senior_admin %}
-                                <a href="#" class="btn btn-sm btn-outline-success">Mark Paid</a>
+                                <a href="#" class="btn btn-sm btn-outline-success" onclick="markAsPaid({{ fee.student.id }}, '{{ fee.student.user.get_full_name }}')">
+                                    Mark Paid
+                                    </a>
                                 {% endif %}
                             </td>
                         </tr>
@@ -115,3 +125,30 @@
     </div>
 </div>
 {% endblock %}
+
+<script>
+function markAsPaid(studentId, studentName) {
+    if (confirm(`Mark ${studentName} as fully paid? This will set their balance to 0.`)) {
+        fetch(`/schools/mark-fee-paid/${studentId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Student marked as paid successfully!');
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error marking student as paid');
+        });
+    }
+}
+</script>

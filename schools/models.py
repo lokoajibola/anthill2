@@ -16,6 +16,7 @@ class School(models.Model):
     name = models.CharField(max_length=200)
     logo = models.ImageField(upload_to='schools/logos/', blank=True)
     motto = models.CharField(max_length=300, blank=True)
+    about_text = models.TextField(blank=True, null=True)
     vision = models.TextField(blank=True)
     mission = models.TextField(blank=True)
     primary_color = models.CharField(max_length=7, default='#000000')
@@ -79,17 +80,20 @@ class Payment(models.Model):
     def __str__(self):
         return f"{self.school.name} - ${self.amount} - {self.status}"
 
-
+class Article(models.Model):
+    school = models.ForeignKey(School, on_delete=models.CASCADE)
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    author = models.ForeignKey('users.User', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 class GalleryImage(models.Model):
-    school = models.ForeignKey(School, on_delete=models.CASCADE, null = True)
+    school = models.ForeignKey(School, on_delete=models.CASCADE)
     image = models.ImageField(upload_to='gallery/')
-    title = models.CharField(max_length=200)
-    description = models.TextField(blank=True)
+    title = models.CharField(max_length=100)
+    description = models.TextField(blank=True)  # Change to blank=True
     uploaded_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        ordering = ['-uploaded_at']
 
 class AdmissionInfo(models.Model):
     school = models.OneToOneField(School, on_delete=models.CASCADE)

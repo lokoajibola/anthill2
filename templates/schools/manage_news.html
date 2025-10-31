@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage News & Articles - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-newspaper me-2"></i>Manage News & Articles
+                    </h4>
+                    <span class="badge bg-primary">{{ articles.count }} article{{ articles.count|pluralize }}</span>
+                </div>
+                <div class="card-body">
+                    <!-- Create New Article Form -->
+                    <div class="mb-4 p-4 border rounded bg-light">
+                        <h5 class="mb-3">
+                            <i class="fas fa-plus-circle me-2"></i>Create New Article
+                        </h5>
+                        <form method="post" action="{% url 'schools:add_article' %}">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Article Title</label>
+                                <input type="text" name="title" class="form-control" placeholder="Enter article title..." required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Article Content</label>
+                                <textarea name="content" class="form-control" rows="6" placeholder="Write your article content here..." required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-paper-plane me-2"></i>Publish Article
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Existing Articles -->
+                    <h5 class="mb-3">
+                        <i class="fas fa-list me-2"></i>Existing Articles
+                    </h5>
+                    {% if articles %}
+                    <div class="list-group">
+                        {% for article in articles %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ article.title }}</h6>
+                                    <p class="mb-2 text-muted">{{ article.content|truncatewords:30 }}</p>
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar me-1"></i>
+                                        Published on {{ article.created_at|date:"M d, Y" }}
+                                        <i class="fas fa-user ms-3 me-1"></i>
+                                        By {{ article.author.get_full_name }}
+                                    </small>
+                                </div>
+                                <div class="btn-group ms-3">
+                                    <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editArticleModal{{ article.id }}">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <a href="{% url 'schools:delete_article' article.id %}" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this article?')">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Edit Article Modal -->
+                        <div class="modal fade" id="editArticleModal{{ article.id }}" tabindex="-1">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Edit Article</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <form method="post" action="{% url 'schools:edit_article' article.id %}">
+                                            {% csrf_token %}
+                                            <div class="mb-3">
+                                                <label class="form-label">Article Title</label>
+                                                <input type="text" name="title" class="form-control" value="{{ article.title }}" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Article Content</label>
+                                                <textarea name="content" class="form-control" rows="8" required>{{ article.content }}</textarea>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary">Update Article</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-newspaper fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No articles published yet. Create your first article above!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview Sidebar -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-eye me-2"></i>Homepage Preview
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="border rounded p-3 bg-light">
+                        <h6 class="text-school-primary">Latest News</h6>
+                        {% if articles %}
+                            {% for article in articles|slice:":3" %}
+                            <div class="mb-3 pb-3 {% if not forloop.last %}border-bottom{% endif %}">
+                                <strong>{{ article.title }}</strong>
+                                <p class="small mb-1">{{ article.content|truncatewords:20 }}</p>
+                                <small class="text-muted">{{ article.created_at|date:"M d" }}</small>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted small">[News articles will appear here]</p>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mt-3 text-center">
+                        <a href="{% url 'schools:school_homepage' school.id %}" class="btn btn-outline-primary btn-sm" target="_blank">
+                            <i class="fas fa-external-link-alt me-2"></i>View Full Homepage
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Quick Stats
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h4 class="text-primary">{{ articles.count }}</h4>
+                            <small class="text-muted">Total Articles</small>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-success">
+                                {% if articles %}{{ articles.0.created_at|date:"M d" }}{% else %}--{% endif %}
+                            </h4>
+                            <small class="text-muted">Last Published</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.text-school-primary {
+    color: {{ school.primary_color|default:'#0d6efd' }} !important;
+}
+.list-group-item:hover {
+    background-color: #f8f9fa;
+}
+</style>
+{% endblock %}

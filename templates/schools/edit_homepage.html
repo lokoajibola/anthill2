@@ -15,6 +15,16 @@
 {% endblock %}
 
 {% block content %}
+<!-- Add this CSS for hover effects -->
+<style>
+.card-hover {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+</style>
 <div class="container mt-4">
     <div class="row">
         <div class="col-md-12">
@@ -102,7 +112,77 @@
                     </form>
                 </div>
             </div>
+
+            
+
+            
+
+<!-- Replace the entire About Us, Gallery, and Admission sections with this: -->
+
+<!-- Quick Actions Card -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">Quick Management</h5>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <!-- About Us Button -->
+            <div class="col-md-4">
+                <div class="card card-hover text-center h-100">
+                    <div class="card-body">
+                        <i class="fas fa-info-circle fa-3x text-primary mb-3"></i>
+                        <h5>About Us</h5>
+                        <p class="text-muted">Manage school description and history</p>
+                        <a href="{% url 'schools:manage_about' %}" class="btn btn-primary">Manage About Us</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gallery Button -->
+            <div class="col-md-4">
+                <div class="card card-hover text-center h-100">
+                    <div class="card-body">
+                        <i class="fas fa-images fa-3x text-success mb-3"></i>
+                        <h5>Gallery</h5>
+                        <p class="text-muted">Upload and manage gallery images</p>
+                        <a href="{% url 'schools:manage_gallery' %}" class="btn btn-primary">Manage Gallery</a>
+                        
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admissions Button -->
+            <div class="col-md-4">
+                <div class="card card-hover text-center h-100">
+                    <div class="card-body">
+                        <i class="fas fa-graduation-cap fa-3x text-warning mb-3"></i>
+                        <h5>Admissions</h5>
+                        <p class="text-muted">Update admission requirements and process</p>
+                        <a href="{% url 'schools:manage_admission' %}" class="btn btn-primary">Manage Admissions</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- News Button -->
+            <div class="col-md-4">
+                <div class="card card-hover text-center h-100">
+                    <div class="card-body">
+                        <i class="fas fa-graduation-cap fa-3x text-warning mb-3"></i>
+                        <h5>News</h5>
+                        <p class="text-muted">UUpdate the latest news from school</p>
+                        <a href="{% url 'schools:manage_news' %}" class="btn btn-primary">Manage News</a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+
+
+        </div>
+    </div>
+</div>
+
+
 {% endblock %}

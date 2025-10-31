@@ -2,17 +2,31 @@
 
 {% block title %}{{ user.get_full_name }} - {{ school.name }}{% endblock %}
 
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="{% url 'schools:dashboard' %}">{{ school.name }}</a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="{% url 'schools:dashboard' %}">Dashboard</a>
+            
+            <a href="{% url 'schools:manage_users' %}" class="nav-link">Back to Users</a>
+            
+            {% if user_type == 'student' %}
+            <a href="{% url 'academic:student_results' %}" class="nav-link">View Results</a>
+            {% endif %}
+        
+            <a class="nav-link" href="{% url 'users:logout' %}">Logout</a>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <!-- Header with Actions -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>{{ user.get_full_name }}</h2>
-        <div>
-            <a href="{% url 'schools:manage_users' %}" class="btn btn-outline-secondary">Back to Users</a>
-            {% if user_type == 'student' %}
-            <a href="{% url 'academic:student_results' user.id %}" class="btn btn-primary">View Results</a>
-            {% endif %}
-        </div>
+        
     </div>
 
     <div class="row">
@@ -56,22 +70,26 @@
                 </div>
             </div>
 
-            <!-- Quick Actions Card -->
-            <div class="card mt-3">
-                <div class="card-header">
-                    <h6 class="mb-0">Quick Actions</h6>
+            <!-- Teacher Subjects Card -->
+<div class="card mt-3">
+    <div class="card-header">
+        <h6 class="mb-0">Assigned Subjects</h6>
+    </div>
+    <div class="card-body">
+        {% if user_profile.teacher.subjects.all %}
+            <div class="list-group list-group-flush">
+                {% for subject in user_profile.teacher.subjects.all %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ subject.name }}
+                    <span class="badge bg-primary">{{ subject.code }}</span>
                 </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        {% if user_type == 'student' %}
-                        
-                        {% endif %}
-                        {% if user_type == 'teacher' %}
-                        
-                        {% endif %}
-                    </div>
-                </div>
+                {% endfor %}
             </div>
+        {% else %}
+            <p class="text-muted mb-0">No subjects assigned</p>
+        {% endif %}
+    </div>
+</div>
         </div>
 
         <!-- Profile Information Card -->

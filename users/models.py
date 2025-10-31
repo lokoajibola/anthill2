@@ -3,8 +3,6 @@ from django.db import models
 from schools.models import School
 from django.core.exceptions import ValidationError
 
-
-
 class User(AbstractUser):
     USER_TYPE_CHOICES = (
         ('super_admin', 'Super Admin'),

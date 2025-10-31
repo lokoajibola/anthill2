@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage About Us - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Manage About Us
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'schools:edit_homepage' %}">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">About Us Content</label>
+                            <textarea name="about_text" class="form-control" rows="10" placeholder="Write about your school history, values, achievements, and what makes your school unique...">{% if school.about_text %}{{ school.about_text }}{% endif %}</textarea>
+                            <div class="form-text">
+                                This content will appear in the "About Us" section of your school's public homepage.
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">School Vision</label>
+                                    <textarea name="vision" class="form-control" rows="4" placeholder="Your school's vision statement...">{{ school.vision }}</textarea>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">School Mission</label>
+                                    <textarea name="mission" class="form-control" rows="4" placeholder="Your school's mission statement...">{{ school.mission }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">School Motto</label>
+                            <input type="text" name="motto" class="form-control" value="{{ school.motto }}" placeholder="Your school's motto...">
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Update About Us
+                            </button>
+                            <a href="{% url 'schools:edit_homepage' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Edit Homepage
+                            </a>
+                            <a href="{% url 'schools:school_homepage' school.id %}" class="btn btn-outline-info" target="_blank">
+                                <i class="fas fa-eye me-2"></i>Preview Homepage
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Preview Section -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-eye me-2"></i>Live Preview
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="border rounded p-4 bg-light">
+                        <h4 class="text-school-primary">About Our School</h4>
+                        {% if school.about_text %}
+                            <p class="lead">{{ school.about_text|truncatewords:50 }}</p>
+                        {% else %}
+                            <p class="text-muted">[About us content will appear here]</p>
+                        {% endif %}
+                        
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <h5>Our Vision</h5>
+                                <p>{{ school.vision|default:"[Vision statement will appear here]" }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Our Mission</h5>
+                                <p>{{ school.mission|default:"[Mission statement will appear here]" }}</p>
+                            </div>
+                        </div>
+                        
+                        {% if school.motto %}
+                        <div class="mt-3">
+                            <strong>Motto:</strong> "{{ school.motto }}"
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.text-school-primary {
+    color: {{ school.primary_color|default:'#0d6efd' }} !important;
+}
+</style>
+{% endblock %}

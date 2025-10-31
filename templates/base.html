@@ -29,11 +29,22 @@
                     
                 {% elif user.user_type == 'senior_admin' or user.user_type == 'junior_admin' %}
                     <!-- School Admin Links -->
-                    <a class="nav-link" href="{% url 'schools:dashboard' %}">Dashboard</a>
+                    <!-- <a class="nav-link" href="{% url 'schools:dashboard' %}">Dashboard</a>
                     <a class="nav-link" href="{% url 'schools:manage_users' %}">Manage Users</a>
                     <a class="nav-link" href="{% url 'schools:search' %}">Search</a>
-                    <a class="nav-link" href="{% url 'schools:analytics' %}">Analytics</a>
-                    
+                    <a class="nav-link" href="{% url 'schools:analytics' %}">Analytics</a> -->
+                    <li class="nav-item">
+                        <form method="get" action="{% url 'schools:search' %}" class="d-inline">
+                            <div class="input-group input-group-sm">
+                                <input type="text" name="q" class="form-control" placeholder="Search..." 
+                                    value="{{ request.GET.q }}" style="width: 200px; height: 30px; ">
+                                <button class="btn btn-outline-light" type="submit">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </li>
+
                     {% if user.user_type == 'senior_admin' %}
                     <a class="nav-link" href="{% url 'schools:payment_history' %}">Payments</a>
                     <a class="nav-link" href="{% url 'schools:edit_homepage' %}">School Info</a>

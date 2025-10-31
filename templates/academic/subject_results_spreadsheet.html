@@ -1,0 +1,906 @@
+{% extends 'base.html' %}
+
+{% block title %}Subject Results Spreadsheet - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4 class="mb-0">
+                <i class="fas fa-table me-2"></i>Subject Results Spreadsheet
+            </h4>
+        </div>
+        <div class="card-body">
+            <!-- Filters Section -->
+            <div class="row mb-4">
+                <div class="col-md-2">
+                    <label class="form-label">Class</label>
+                    <select class="form-control" id="classSelect">
+                        <option value="">Select Class</option>
+                        {% for class in classes %}
+                        <option value="{{ class.id }}">{{ class.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Subject</label>
+                    <select class="form-control" id="subjectSelect" disabled>
+                        <option value="">Select Subject</option>
+                        {% for subject in teacher_subjects %}
+                        <option value="{{ subject.id }}">{{ subject.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Term</label>
+                    <select class="form-control" id="termSelect">
+                        <option value="1">First Term</option>
+                        <option value="2">Second Term</option>
+                        <option value="3">Third Term</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Session</label>
+                    <select class="form-control" id="sessionSelect">
+                        {% for year in session_years %}
+                        <option value="{{ year }}">{{ year }}/{{ year|add:1 }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">CA Categories Management</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="newCaName" placeholder="CA Name (e.g., Test 1)">
+                        <input type="number" class="form-control" id="newCaMaxScore" placeholder="Max Score" style="max-width: 120px;">
+                        <button class="btn btn-primary" onclick="addCaCategory()" id="addCaBtn" disabled>
+                            <i class="fas fa-plus me-1"></i>Add CA
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="showCaManagement()" id="manageCaBtn" disabled>
+                            <i class="fas fa-cog"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Spreadsheet Section -->
+            <div class="table-responsive" id="spreadsheetSection" style="display: none;">
+                <table class="table table-bordered table-striped" id="resultsSpreadsheet">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>STUDENT NAMES</th>
+                            <!-- CA columns will be dynamically added here -->
+                            <th>COMMENT</th>
+                            <th>TOTAL SCORE</th>
+                            <th>POSITION</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="spreadsheetBody">
+                        <!-- Students and scores will be loaded here -->
+                    </tbody>
+                </table>
+                
+                <div class="mt-3">
+                    <button class="btn btn-success" onclick="saveAllResults()">
+                        <i class="fas fa-save me-2"></i>Save All Results
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="calculatePositions()">
+                        <i class="fas fa-calculator me-2"></i>Calculate Positions
+                    </button>
+                    <button class="btn btn-outline-info" onclick="exportToExcel()">
+                        <i class="fas fa-download me-2"></i>Export to Excel
+                    </button>
+                    <button class="btn btn-outline-warning" onclick="loadExistingScores()">
+                        <i class="fas fa-sync me-2"></i>Load Existing Scores
+                    </button>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div class="text-center py-5" id="emptyState">
+                <i class="fas fa-table fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Select a class and subject to view and manage results</h5>
+                <p class="text-muted">Choose a class, subject, term, and session to start working with the results spreadsheet</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CA Management Modal -->
+<div class="modal fade" id="caManagementModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Manage CA Categories</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="caCategoriesList">
+                    <!-- CA categories will be listed here -->
+                </div>
+                <div class="mt-3">
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeAllCaCategories()">
+                        Remove All CA Categories
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.table th {
+    background-color: #2c3e50;
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    vertical-align: middle;
+}
+.table td {
+    vertical-align: middle;
+}
+.score-input {
+    width: 80px;
+    text-align: center;
+}
+.position-badge {
+    font-size: 0.9em;
+    font-weight: bold;
+}
+.student-row:hover {
+    background-color: #f8f9fa;
+}
+.ca-category-item {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentCaCategories = [];
+let studentsData = [];
+let currentSubjectId = null;
+let currentClassId = null;
+
+// Initialize with current year
+document.getElementById('sessionSelect').value = new Date().getFullYear();
+
+// Enable subject dropdown when class is selected
+document.getElementById('classSelect').addEventListener('change', function() {
+    const classId = this.value;
+    const subjectSelect = document.getElementById('subjectSelect');
+    
+    if (classId) {
+        subjectSelect.disabled = false;
+        currentClassId = classId;
+    } else {
+        subjectSelect.disabled = true;
+        subjectSelect.value = '';
+        currentClassId = null;
+        document.getElementById('addCaBtn').disabled = true;
+        document.getElementById('manageCaBtn').disabled = true;
+        hideSpreadsheet();
+    }
+});
+
+// Load students when subject is selected
+document.getElementById('subjectSelect').addEventListener('change', function() {
+    const subjectId = this.value;
+    
+    if (subjectId) {
+        currentSubjectId = subjectId;
+        document.getElementById('addCaBtn').disabled = false;
+        document.getElementById('manageCaBtn').disabled = false;
+        
+        // Load CA categories for this subject
+        loadCaCategoriesForSubject(subjectId);
+        
+        // Load students
+        loadStudentsForSpreadsheet();
+    } else {
+        document.getElementById('addCaBtn').disabled = true;
+        document.getElementById('manageCaBtn').disabled = true;
+        hideSpreadsheet();
+    }
+});
+
+function loadCaCategoriesForSubject(subjectId) {
+    const term = document.getElementById('termSelect').value;
+    const session = document.getElementById('sessionSelect').value;
+    
+    // Load saved CA categories for this subject-term-session combination
+    const storageKey = `ca_categories_${subjectId}_${term}_${session}`;
+    const savedCategories = localStorage.getItem(storageKey);
+    
+    if (savedCategories) {
+        currentCaCategories = JSON.parse(savedCategories);
+    } else {
+        // Default CA categories for new subject
+        currentCaCategories = [
+            { name: 'Test 1', maxScore: 20 },
+            { name: 'Test 2', maxScore: 20 },
+            { name: 'Assignment', maxScore: 10 },
+            { name: 'Exam', maxScore: 50 }
+        ];
+        saveCaCategoriesToStorage();
+    }
+}
+
+function saveCaCategoriesToStorage() {
+    if (!currentSubjectId) return;
+    
+    const term = document.getElementById('termSelect').value;
+    const session = document.getElementById('sessionSelect').value;
+    const storageKey = `ca_categories_${currentSubjectId}_${term}_${session}`;
+    
+    localStorage.setItem(storageKey, JSON.stringify(currentCaCategories));
+}
+
+function loadStudentsForSpreadsheet() {
+    if (!currentClassId || !currentSubjectId) return;
+    
+    const term = document.getElementById('termSelect').value;
+    const session = document.getElementById('sessionSelect').value;
+    
+    console.log('Loading students for class:', currentClassId, 'subject:', currentSubjectId);
+    
+    // Show loading
+    const totalColumns = 4 + (currentCaCategories ? currentCaCategories.length : 0);
+    document.getElementById('spreadsheetBody').innerHTML = `
+        <tr>
+            <td colspan="${totalColumns}" class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading students...</span>
+                </div>
+                <p class="mt-2">Loading students...</p>
+            </td>
+        </tr>
+    `;
+
+    fetch(`/academic/api/class-students/${currentClassId}/`)
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Students data received:', data);
+            if (data.students && Array.isArray(data.students)) {
+                studentsData = data.students;
+                console.log(`Loaded ${studentsData.length} students from class: ${data.class_name}`);
+                
+                if (studentsData.length === 0) {
+                    document.getElementById('spreadsheetBody').innerHTML = `
+                        <tr>
+                            <td colspan="${totalColumns}" class="text-center text-warning py-4">
+                                <i class="fas fa-users-slash fa-2x mb-3"></i>
+                                <p>No students found in this class</p>
+                                <small class="text-muted">Class: ${data.class_name}</small>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                initializeSpreadsheet();
+                loadExistingScores();
+            } else {
+                throw new Error('Invalid students data format');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading students:', error);
+            document.getElementById('spreadsheetBody').innerHTML = `
+                <tr>
+                    <td colspan="${totalColumns}" class="text-center text-danger py-4">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                        <p>Error loading students: ${error.message}</p>
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadStudentsForSpreadsheet()">
+                            Try Again
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+}
+
+
+function initializeSpreadsheet() {
+    console.log('=== INITIALIZE SPREADSHEET ===');
+    console.log('Students data:', studentsData);
+    console.log('CA categories:', currentCaCategories);
+    
+    const spreadsheetBody = document.getElementById('spreadsheetBody');
+    const thead = document.querySelector('#resultsSpreadsheet thead tr');
+    
+    console.log('Spreadsheet body element:', spreadsheetBody);
+    console.log('Table head element:', thead);
+    
+    // Clear existing CA columns (keep first and last 3 columns)
+    const currentColumns = thead.children.length;
+    console.log('Current columns in header:', currentColumns);
+    
+    for (let i = 1; i < currentColumns - 3; i++) {
+        thead.removeChild(thead.children[1]);
+    }
+    
+    // Add CA columns
+    console.log('Adding CA columns:', currentCaCategories.length);
+    currentCaCategories.forEach((ca, index) => {
+        const th = document.createElement('th');
+        th.innerHTML = `
+            ${ca.name}<br>
+            <small>(${ca.maxScore})</small>
+            <br>
+            <small class="text-warning">Weight: ${calculateWeight(ca.maxScore)}%</small>
+        `;
+        th.setAttribute('data-ca-index', index);
+        thead.insertBefore(th, thead.children[1 + index]);
+    });
+    
+    // Populate student rows
+    console.log('Populating student rows:', studentsData.length);
+    spreadsheetBody.innerHTML = '';
+    
+    studentsData.forEach((student, rowIndex) => {
+        console.log('Creating row for student:', student);
+        const row = document.createElement('tr');
+        row.className = 'student-row';
+        
+        let rowHTML = `
+            <td>
+                <strong>${student.full_name}</strong>
+                <br>
+                <small class="text-muted">${student.admission_number || 'No ID'}</small>
+                <input type="hidden" name="student_ids" value="${student.id}">
+            </td>
+        `;
+        
+        // Add CA columns
+        currentCaCategories.forEach((ca, caIndex) => {
+            rowHTML += `
+                <td>
+                    <input type="number" 
+                           class="form-control score-input" 
+                           data-student-id="${student.id}"
+                           data-ca-name="${ca.name}"
+                           min="0" 
+                           max="${ca.maxScore}"
+                           value="0"
+                           onchange="updateTotalScore(${rowIndex})">
+                </td>
+            `;
+        });
+        
+        rowHTML += `
+            <td>
+                <input type="text" 
+                       class="form-control comment-input"
+                       data-student-id="${student.id}"
+                       placeholder="Enter comment">
+            </td>
+            <td>
+                <span class="total-score" data-student-id="${student.id}">0</span>
+            </td>
+            <td>
+                <span class="badge position-badge bg-secondary" data-student-id="${student.id}">-</span>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline-danger" onclick="removeStudentRow(this)">
+                    <i class="fas fa-times"></i>
+                </button>
+            </td>
+        `;
+        
+        row.innerHTML = rowHTML;
+        spreadsheetBody.appendChild(row);
+        console.log('Row added to table:', row);
+    });
+    
+    console.log('Final spreadsheet body innerHTML:', spreadsheetBody.innerHTML);
+    
+    document.getElementById('spreadsheetSection').style.display = 'block';
+    document.getElementById('emptyState').style.display = 'none';
+    
+    console.log('Spreadsheet initialization complete');
+
+
+
+    // Add this at the end of initializeSpreadsheet()
+    setTimeout(() => {
+        const rows = document.querySelectorAll('.student-row');
+        console.log('Visible student rows after render:', rows.length);
+        rows.forEach((row, index) => {
+            console.log(`Row ${index}:`, row.innerHTML);
+            console.log(`Row ${index} display style:`, window.getComputedStyle(row).display);
+        });
+    }, 100);
+
+    // Add this check
+    console.log('Spreadsheet section display before:', document.getElementById('spreadsheetSection').style.display);
+    document.getElementById('spreadsheetSection').style.display = 'block';
+    document.getElementById('emptyState').style.display = 'none';
+    console.log('Spreadsheet section display after:', document.getElementById('spreadsheetSection').style.display);
+    console.log('Current CA categories for matching:', currentCaCategories.map(ca => ca.name));
+}
+
+function calculateWeight(maxScore) {
+    // Calculate weight based on max score (assuming total max is 100)
+    return (maxScore / 100) * 100;
+}
+
+function addCaCategory() {
+    const name = document.getElementById('newCaName').value.trim();
+    const maxScore = parseInt(document.getElementById('newCaMaxScore').value);
+    
+    if (!name || !maxScore) {
+        alert('Please enter both CA name and max score');
+        return;
+    }
+    
+    // Check if CA name already exists
+    if (currentCaCategories.some(ca => ca.name.toLowerCase() === name.toLowerCase())) {
+        alert('CA category with this name already exists');
+        return;
+    }
+    
+    currentCaCategories.push({
+        name: name,
+        maxScore: maxScore
+    });
+    
+    document.getElementById('newCaName').value = '';
+    document.getElementById('newCaMaxScore').value = '';
+    
+    saveCaCategoriesToStorage();
+    
+    if (studentsData.length > 0) {
+        initializeSpreadsheet();
+        calculateAllTotals();
+    }
+}
+
+function showCaManagement() {
+    const caList = document.getElementById('caCategoriesList');
+    caList.innerHTML = '';
+    
+    currentCaCategories.forEach((ca, index) => {
+        const div = document.createElement('div');
+        div.className = 'ca-category-item';
+        div.innerHTML = `
+            <div class="flex-grow-1">
+                <strong>${ca.name}</strong>
+                <br>
+                <small class="text-muted">Max Score: ${ca.maxScore} | Weight: ${calculateWeight(ca.maxScore)}%</small>
+            </div>
+            <button class="btn btn-sm btn-outline-danger" onclick="removeCaCategory(${index})">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+        caList.appendChild(div);
+    });
+    
+    if (currentCaCategories.length === 0) {
+        caList.innerHTML = '<p class="text-muted">No CA categories added yet.</p>';
+    }
+    
+    new bootstrap.Modal(document.getElementById('caManagementModal')).show();
+}
+
+function removeCaCategory(index) {
+    const ca = currentCaCategories[index];
+    if (confirm(`Remove "${ca.name}" CA category? This will clear all scores for this category.`)) {
+        currentCaCategories.splice(index, 1);
+        saveCaCategoriesToStorage();
+        
+        if (studentsData.length > 0) {
+            initializeSpreadsheet();
+            calculateAllTotals();
+        }
+        
+        // Close and reopen modal to refresh list
+        bootstrap.Modal.getInstance(document.getElementById('caManagementModal')).hide();
+        setTimeout(showCaManagement, 300);
+    }
+}
+
+function removeAllCaCategories() {
+    if (confirm('Remove all CA categories? This will clear all scores.')) {
+        currentCaCategories = [];
+        saveCaCategoriesToStorage();
+        
+        if (studentsData.length > 0) {
+            initializeSpreadsheet();
+        }
+        
+        bootstrap.Modal.getInstance(document.getElementById('caManagementModal')).hide();
+    }
+}
+
+function loadExistingScores() {
+    if (!currentSubjectId || !currentClassId) return;
+    
+    const term = document.getElementById('termSelect').value;
+    const session = document.getElementById('sessionSelect').value;
+    
+    console.log('Loading existing scores for:', {
+        subject: currentSubjectId,
+        class: currentClassId,
+        term: term,
+        session: session
+    });
+    
+    fetch(`/academic/api/load-existing-scores/?subject_id=${currentSubjectId}&class_id=${currentClassId}&term=${term}&session=${session}`)
+        .then(response => response.json())
+        .then(data => {
+            console.log('Server response:', data);
+            if (data.success && data.scores) {
+                populateExistingScores(data.scores);
+                calculateAllTotals();
+                alert(`✅ Loaded ${data.scores.length} existing scores!`);
+            } else {
+                alert('No existing scores found for this selection.');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading existing scores:', error);
+            alert('Error loading existing scores');
+        });
+}
+
+function populateExistingScores(scoresData) {
+    console.log('Populating existing scores:', scoresData);
+    
+    let populatedCount = 0;
+    let failedMatches = [];
+    
+    scoresData.forEach(score => {
+        const studentId = score.student_id;
+        let caName = score.ca_name;
+        const scoreValue = score.score;
+        const comment = score.comment;
+        
+        console.log(`Processing: Student ${studentId}, CA: "${caName}", Score: ${scoreValue}`);
+        
+        // Normalize CA name for matching
+        const normalizedCaName = normalizeCaName(caName);
+        console.log(`Normalized CA name: "${normalizedCaName}"`);
+        
+        // Find all inputs for this student
+        const studentInputs = document.querySelectorAll(`.score-input[data-student-id="${studentId}"]`);
+        console.log(`Found ${studentInputs.length} inputs for student ${studentId}`);
+        
+        let matched = false;
+        
+        studentInputs.forEach(input => {
+            const inputCaName = input.getAttribute('data-ca-name');
+            const normalizedInputCaName = normalizeCaName(inputCaName);
+            
+            console.log(`Comparing: "${normalizedCaName}" vs "${normalizedInputCaName}"`);
+            
+            // Exact match after normalization
+            if (normalizedCaName === normalizedInputCaName) {
+                input.value = scoreValue;
+                populatedCount++;
+                matched = true;
+                console.log(`✓ Exact match: Set "${inputCaName}" = ${scoreValue}`);
+                return;
+            }
+        });
+        
+        // If no exact match, try fuzzy matching
+        if (!matched) {
+            studentInputs.forEach(input => {
+                const inputCaName = input.getAttribute('data-ca-name');
+                const normalizedInputCaName = normalizeCaName(inputCaName);
+                
+                // Fuzzy match: check if one contains the other
+                if (normalizedCaName.includes(normalizedInputCaName) || 
+                    normalizedInputCaName.includes(normalizedCaName) ||
+                    getSimilarity(normalizedCaName, normalizedInputCaName) > 0.7) {
+                    
+                    input.value = scoreValue;
+                    populatedCount++;
+                    matched = true;
+                    console.log(`✓ Fuzzy match: Set "${inputCaName}" = ${scoreValue}`);
+                    return;
+                }
+            });
+        }
+        
+        if (!matched) {
+            failedMatches.push({ studentId, caName, normalizedCaName });
+            console.log(`✗ No match for student ${studentId}, CA: "${caName}"`);
+        }
+        
+        // Set comment for the student
+        const commentInput = document.querySelector(`.comment-input[data-student-id="${studentId}"]`);
+        if (commentInput && comment && !commentInput.value) {
+            commentInput.value = comment;
+        }
+    });
+    
+    console.log(`Successfully populated ${populatedCount} scores out of ${scoresData.length}`);
+    console.log('Failed matches:', failedMatches);
+    
+    // Show failed matches in console for debugging
+    if (failedMatches.length > 0) {
+        console.log('=== FAILED MATCHES ===');
+        failedMatches.forEach(fail => {
+            console.log(`Student ${fail.studentId}: "${fail.caName}" -> "${fail.normalizedCaName}"`);
+        });
+        
+        // Show current CA categories for comparison
+        console.log('Current CA categories:', currentCaCategories.map(ca => ca.name));
+    }
+    
+    // Recalculate totals after populating scores
+    calculateAllTotals();
+}
+
+// Helper function to normalize CA names for matching
+function normalizeCaName(caName) {
+    return caName
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, ' ')  // Replace special chars with spaces
+        .replace(/\s+/g, ' ')        // Collapse multiple spaces
+        .trim()
+        .replace(/\s/g, '');         // Remove all spaces
+}
+
+// Simple string similarity function
+function getSimilarity(s1, s2) {
+    const longer = s1.length > s2.length ? s1 : s2;
+    const shorter = s1.length > s2.length ? s2 : s1;
+    
+    if (longer.length === 0) return 1.0;
+    
+    return (longer.length - editDistance(longer, shorter)) / parseFloat(longer.length);
+}
+
+// Edit distance calculation for similarity
+function editDistance(s1, s2) {
+    s1 = s1.toLowerCase();
+    s2 = s2.toLowerCase();
+
+    const costs = [];
+    for (let i = 0; i <= s1.length; i++) {
+        let lastValue = i;
+        for (let j = 0; j <= s2.length; j++) {
+            if (i === 0) {
+                costs[j] = j;
+            } else {
+                if (j > 0) {
+                    let newValue = costs[j - 1];
+                    if (s1.charAt(i - 1) !== s2.charAt(j - 1)) {
+                        newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+                    }
+                    costs[j - 1] = lastValue;
+                    lastValue = newValue;
+                }
+            }
+        }
+        if (i > 0) costs[s2.length] = lastValue;
+    }
+    return costs[s2.length];
+}
+
+
+// ... (keep the existing updateTotalScore, calculateAllTotals, calculatePositions, saveAllResults, exportToExcel functions)
+
+function updateTotalScore(rowIndex) {
+    const row = document.querySelectorAll('.student-row')[rowIndex];
+    const inputs = row.querySelectorAll('.score-input');
+    let total = 0;
+    
+    inputs.forEach((input, index) => {
+        const score = parseFloat(input.value) || 0;
+        const maxScore = currentCaCategories[index].maxScore;
+        // Calculate weighted score (percentage of max score)
+        total += (score / maxScore) * 100;
+    });
+    
+    // Average the total
+    if (currentCaCategories.length > 0) {
+        total = total / currentCaCategories.length;
+    }
+    
+    row.querySelector('.total-score').textContent = total.toFixed(1);
+}
+
+function calculateAllTotals() {
+    const rows = document.querySelectorAll('.student-row');
+    rows.forEach((row, index) => {
+        updateTotalScore(index);
+    });
+    calculatePositions();
+}
+
+function calculatePositions() {
+    const rows = document.querySelectorAll('.student-row');
+    const scores = [];
+    
+    // Collect all scores
+    rows.forEach(row => {
+        const totalScore = parseFloat(row.querySelector('.total-score').textContent) || 0;
+        const studentId = row.querySelector('input[name="student_ids"]').value;
+        scores.push({ studentId: studentId, score: totalScore });
+    });
+    
+    // Sort by score descending
+    scores.sort((a, b) => b.score - a.score);
+    
+    // Assign positions
+    scores.forEach((item, index) => {
+        const position = index + 1;
+        const badge = document.querySelector(`.position-badge[data-student-id="${item.studentId}"]`);
+        if (badge) {
+            badge.textContent = position;
+            badge.className = `badge position-badge ${
+                position === 1 ? 'bg-warning' : 
+                position === 2 ? 'bg-secondary' : 
+                position === 3 ? 'bg-danger' : 'bg-info'
+            }`;
+        }
+    });
+}
+
+function saveAllResults() {
+    const classId = document.getElementById('classSelect').value;
+    const subjectId = document.getElementById('subjectSelect').value;
+    const term = document.getElementById('termSelect').value;
+    const session = document.getElementById('sessionSelect').value;
+    
+    console.log('Save button clicked');
+    console.log('Class:', classId, 'Subject:', subjectId, 'Term:', term, 'Session:', session);
+    
+    if (!classId || !subjectId) {
+        alert('Please select both class and subject first');
+        return;
+    }
+    
+    if (currentCaCategories.length === 0) {
+        alert('Please add at least one CA category before saving');
+        return;
+    }
+    
+    const resultsData = {
+        class_id: classId,
+        subject_id: subjectId,
+        term: term,
+        session: session,
+        ca_categories: currentCaCategories,
+        results: []
+    };
+    
+    // Collect all student data
+    document.querySelectorAll('.student-row').forEach(row => {
+        const studentId = row.querySelector('input[name="student_ids"]').value;
+        const comment = row.querySelector('.comment-input').value;
+        const totalScore = parseFloat(row.querySelector('.total-score').textContent) || 0;
+        const position = row.querySelector('.position-badge').textContent;
+        
+        const caScores = [];
+        currentCaCategories.forEach((ca, index) => {
+            const input = row.querySelector(`.score-input[data-student-id="${studentId}"][data-ca-name="${ca.name}"]`);
+            if (input) {
+                caScores.push({
+                    ca_name: ca.name,
+                    score: parseFloat(input.value) || 0,
+                    max_score: ca.maxScore
+                });
+            }
+        });
+        
+        resultsData.results.push({
+            student_id: studentId,
+            ca_scores: caScores,
+            comment: comment,
+            total_score: totalScore,
+            position: position
+        });
+    });
+    
+    console.log('Sending data:', resultsData);
+    
+    // Show loading state
+    const saveBtn = document.querySelector('button[onclick="saveAllResults()"]');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+    saveBtn.disabled = true;
+    
+    // Send to server
+    fetch('/academic/save-spreadsheet-results/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(resultsData)
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Server response:', data);
+        if (data.success) {
+            alert('✅ Results saved successfully!');
+        } else {
+            alert('❌ Error saving results: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('❌ Network error saving results: ' + error.message);
+    })
+    .finally(() => {
+        // Restore button state
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+    });
+}
+
+function exportToExcel() {
+    // Simple CSV export
+    let csv = 'Student Name,';
+    currentCaCategories.forEach(ca => {
+        csv += `${ca.name} (${ca.maxScore}),`;
+    });
+    csv += 'Comment,Total Score,Position\n';
+    
+    document.querySelectorAll('.student-row').forEach(row => {
+        const studentName = row.cells[0].textContent.trim();
+        csv += `"${studentName}",`;
+        
+        currentCaCategories.forEach((ca, index) => {
+            const input = row.querySelector(`.score-input[data-ca-index="${index}"]`);
+            csv += `${input.value},`;
+        });
+        
+        const comment = row.querySelector('.comment-input').value;
+        const totalScore = row.querySelector('.total-score').textContent;
+        const position = row.querySelector('.position-badge').textContent;
+        
+        csv += `"${comment}",${totalScore},${position}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `results_${document.getElementById('subjectSelect').selectedOptions[0].text}_term${term}_${session}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+function removeStudentRow(button) {
+    const row = button.closest('tr');
+    const studentName = row.cells[0].textContent.trim();
+    
+    if (confirm(`Remove ${studentName} from this spreadsheet?`)) {
+        row.remove();
+        calculatePositions();
+    }
+}
+
+function hideSpreadsheet() {
+    document.getElementById('spreadsheetSection').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'block';
+}
+
+
+</script>
+{% endblock %}

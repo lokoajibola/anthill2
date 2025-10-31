@@ -39,9 +39,9 @@
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">
-                                            <a href="#" class="btn btn-outline-primary">View</a>
-                                            <a href="#" class="btn btn-outline-warning">Edit</a>
-                                            <a href="#" class="btn btn-outline-danger">Delete</a>
+                                            <a href="{% url 'academic:assignment_submissions' assignment.id %}" class="btn btn-outline-primary">Submissions</a>
+                                            <a href="{% url 'academic:edit_assignment' assignment.id %}" class="btn btn-outline-warning">Edit</a>
+                                            <a href="{% url 'academic:delete_assignment' assignment.id %}" class="btn btn-outline-danger" onclick="return confirm('Delete this assignment?')">Delete</a>
                                         </div>
                                     </td>
                                 </tr>

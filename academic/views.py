@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from .models import Subject, Assignment, StudentAssignment, Result, ClassLevel, Result
+from .models import Subject, Assignment, StudentAssignment, Result, ClassLevel, Result, ClassSubject  
 from django.utils import timezone
 from users.models import Teacher, Student
 from schools.models import StudentFee, FeePayment
@@ -145,6 +145,7 @@ def create_assignment(request):
         subject_id = request.POST.get('subject')
         due_date = request.POST.get('due_date')
         max_score = request.POST.get('max_score', 100)
+        class_ids = request.POST.getlist('classes')
         
         subject = get_object_or_404(Subject, id=subject_id)
         
@@ -174,7 +175,7 @@ def create_assignment(request):
         assignment.save()
         
         # Create StudentAssignment records for all students in the school
-        students = Student.objects.filter(school=teacher.school)
+        students = Student.objects.filter(school=teacher.school, class_level_id__in=class_ids)
         for student in students:
             StudentAssignment.objects.create(
                 assignment=assignment,
@@ -185,52 +186,53 @@ def create_assignment(request):
         return redirect('academic:teacher_assignments')
     
     subjects = teacher.subjects.all()
+    teacher = request.user.teacher
+    school = teacher.school
+        
+    # classes = ClassLevel.objects.filter(school=teacher.school)
+    classes = ClassLevel.objects.filter(
+            classsubject__teacher=teacher,
+            school=school
+        ).distinct()
     return render(request, 'academic/create_assignment.html', {
         'teacher': teacher,
         'subjects': subjects,
+        'classes': classes,
         'school': teacher.school
     })
-
 
 @login_required
-def create_assignment(request):
-    teacher = get_object_or_404(Teacher, user=request.user)
-    
-    if request.method == 'POST':
-        title = request.POST.get('title')
-        description = request.POST.get('description')
-        subject_id = request.POST.get('subject')
-        due_date = request.POST.get('due_date')
-        max_score = request.POST.get('max_score', 100)
-        
-        subject = get_object_or_404(Subject, id=subject_id)
-        
-        assignment = Assignment.objects.create(
-            title=title,
-            description=description,
-            subject=subject,
-            teacher=teacher,
-            due_date=due_date,
-            max_score=max_score
-        )
-        
-        # Create StudentAssignment records for all students in the school
-        students = Student.objects.filter(school=teacher.school)
-        for student in students:
-            StudentAssignment.objects.create(
-                assignment=assignment,
-                student=student
-            )
-        
-        messages.success(request, 'Assignment created successfully!')
-        return redirect('academic:teacher_assignments')
-    
-    subjects = teacher.subjects.all()
-    return render(request, 'academic/create_assignment.html', {
-        'teacher': teacher,
-        'subjects': subjects,
-        'school': teacher.school
+def assignment_submissions(request, assignment_id):
+    assignment = get_object_or_404(Assignment, id=assignment_id, teacher=request.user.teacher)
+    submissions = StudentAssignment.objects.filter(assignment=assignment)
+    return render(request, 'academic/assignment_submissions.html', {
+        'assignment': assignment,
+        'submissions': submissions
     })
+
+@login_required
+def edit_assignment(request, assignment_id):
+    assignment = get_object_or_404(Assignment, id=assignment_id, teacher=request.user.teacher)
+    # Add edit logic here
+    return redirect('academic:teacher_assignments')
+
+@login_required
+def delete_result(request, result_id):
+    if request.method == 'DELETE':
+        try:
+            result = get_object_or_404(Result, id=result_id, recorded_by=request.user.teacher)
+            result.delete()
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+@login_required
+def delete_assignment(request, assignment_id):
+    assignment = get_object_or_404(Assignment, id=assignment_id, teacher=request.user.teacher)
+    assignment.delete()
+    messages.success(request, "Assignment deleted successfully")
+    return redirect('academic:teacher_assignments')
 
 @login_required
 def students_by_class_subject(request):
@@ -605,8 +607,9 @@ def api_class_students(request, class_id):
         teacher = request.user.teacher
         class_level = get_object_or_404(ClassLevel, id=class_id, school=teacher.school)
         
+        # Get students ONLY from the selected class
         students = Student.objects.filter(
-            class_level=class_level,
+            class_level=class_level,  # This ensures we only get students from the selected class
             school=teacher.school
         ).select_related('user', 'class_level')
         
@@ -623,14 +626,13 @@ def api_class_students(request, class_id):
         
         return JsonResponse({
             'students': students_data,
-            'class_name': class_level.name,
+            'class_name': class_level.name,  # Return the actual class name
             'total_students': len(students_data)
         })
         
     except Exception as e:
         print(f"Error in api_class_students: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
-
 
 # API view for getting class subjects
 
@@ -719,6 +721,7 @@ def edit_result(request, result_id):
         result.max_score = request.POST.get('max_score')
         result.exam_type = request.POST.get('exam_type')
         result.date_taken = request.POST.get('date_taken')
+        result.comment = request.POST.get('comment', '')
         result.save()
         messages.success(request, "Result updated successfully")
         return redirect('/academic/view-results/')
@@ -726,44 +729,6 @@ def edit_result(request, result_id):
     return render(request, 'academic/edit_result.html', {'result': result})
 
 
-@login_required
-def create_assignment(request):
-    teacher = get_object_or_404(Teacher, user=request.user)
-    
-    if request.method == 'POST':
-        title = request.POST.get('title')
-        description = request.POST.get('description')
-        subject_id = request.POST.get('subject')
-        due_date = request.POST.get('due_date')
-        max_score = request.POST.get('max_score', 100)
-        
-        subject = get_object_or_404(Subject, id=subject_id)
-        
-        assignment = Assignment.objects.create(
-            title=title,
-            description=description,
-            subject=subject,
-            teacher=teacher,
-            due_date=due_date,
-            max_score=max_score
-        )
-        # Create StudentAssignment records for all students in the school
-        students = Student.objects.filter(school=teacher.school)
-        for student in students:
-            StudentAssignment.objects.create(
-                assignment=assignment,
-                student=student
-            )
-        
-        messages.success(request, 'Assignment created successfully!')
-        return redirect('academic:teacher_assignments')
-    
-    subjects = teacher.subjects.all()
-    return render(request, 'academic/create_assignment.html', {
-        'teacher': teacher,
-        'subjects': subjects,
-        'school': teacher.school
-    })
 @login_required
 def student_assignments(request):
     student = get_object_or_404(Student, user=request.user)
@@ -964,6 +929,51 @@ def student_results_admin(request, student_id):
 
 
 @login_required
+def admin_student_results(request, student_id):
+    """View for admin to see any student's results"""
+    if not hasattr(request.user, 'schooladmin') and not hasattr(request.user, 'junioradmin'):
+        messages.error(request, "Access denied.")
+        return redirect('core:homepage')
+    
+    student = get_object_or_404(Student, id=student_id)
+    
+    # Get all results for this student
+    results = Result.objects.filter(student=student).select_related('subject', 'recorded_by__user').order_by('-date_taken')
+    
+    # Filter options
+    subject_id = request.GET.get('subject_id')
+    exam_type = request.GET.get('exam_type')
+    
+    if subject_id:
+        results = results.filter(subject_id=subject_id)
+    
+    if exam_type:
+        results = results.filter(exam_type=exam_type)
+    
+    # Get unique subjects for filter dropdown
+    subjects = Subject.objects.filter(result__student=student).distinct()
+    
+    # Calculate statistics
+    total_results = results.count()
+    if total_results > 0:
+        average_percentage = sum((result.score / result.max_score * 100) for result in results) / total_results
+    else:
+        average_percentage = 0
+    
+    context = {
+        'school': school,
+        'student': student,
+        'scores': results,  # Still call it 'scores' in template
+        'subjects': subjects,
+        'selected_subject_id': subject_id,
+        'selected_exam_type': exam_type,
+        'total_scores': total_results,
+        'average_percentage': round(average_percentage, 1),
+        'is_admin_view': False,
+    }
+    return render(request, 'academic/student_results.html', context)
+
+@login_required
 def student_results(request):
     """View for students to see their own results"""
     if not hasattr(request.user, 'student'):
@@ -1054,3 +1064,233 @@ def assignment_detail(request, assignment_id):
     except Exception as e:
         messages.error(request, f"Error loading assignment: {str(e)}")
         return redirect('academic:student_assignments')
+    
+
+@login_required
+def subject_results_spreadsheet(request):
+    """Main view for the subject results spreadsheet"""
+    teacher = get_object_or_404(Teacher, user=request.user)
+    school = teacher.school
+    
+    # Get teacher's classes and subjects
+    classes = ClassLevel.objects.filter(
+        classsubject__teacher=teacher,
+        school=school
+    ).distinct()
+    
+    teacher_subjects = Subject.objects.filter(
+        classsubject__teacher=teacher
+    ).distinct()
+    
+    # Generate session years
+    current_year = timezone.now().year
+    session_years = range(current_year - 5, current_year + 1)
+    
+    context = {
+        'school': school,
+        'classes': classes,
+        'teacher_subjects': teacher_subjects,
+        'session_years': reversed(list(session_years)),
+    }
+    return render(request, 'academic/subject_results_spreadsheet.html', context)
+
+@login_required
+def api_load_existing_scores(request):
+    """API to load existing scores for a subject-class-term combination"""
+    teacher = request.user.teacher
+    subject_id = request.GET.get('subject_id')
+    class_id = request.GET.get('class_id')
+    term = request.GET.get('term')
+    
+    try:
+        subject = get_object_or_404(Subject, id=subject_id)
+        class_level = get_object_or_404(ClassLevel, id=class_id)
+        
+        # Get students in this class
+        students = Student.objects.filter(class_level=class_level)
+        
+        # Build scores data
+        scores_data = []
+        for student in students:
+            # Get all results for this student, subject, and term pattern
+            results = Result.objects.filter(
+                student=student,
+                subject=subject,
+                exam_type__startswith=f"term{term}_",
+                recorded_by=teacher
+            )
+            
+            for result in results:
+                # Extract CA name from exam_type (e.g., "term1_test1" -> "test1")
+                ca_name = result.exam_type.replace(f"term{term}_", "")
+                if ca_name != "overall":  # Skip overall results
+                    scores_data.append({
+                        'student_id': student.id,
+                        'ca_name': ca_name,
+                        'score': result.score,
+                        'comment': result.comment or ''
+                    })
+        
+        return JsonResponse({
+            'success': True,
+            'scores': scores_data,
+            'total_scores': len(scores_data)
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+@login_required
+def api_subject_students(request, subject_id):
+    """API endpoint to get students for a specific subject"""
+    teacher = get_object_or_404(Teacher, user=request.user)
+    subject = get_object_or_404(Subject, id=subject_id)
+    
+    # Get classes where this teacher teaches this subject
+    classes = ClassLevel.objects.filter(
+        classsubject__teacher=teacher,
+        classsubject__subject=subject
+    ).distinct()
+    
+    # Get all students from those classes
+    students = Student.objects.filter(
+        class_level__in=classes,
+        school=teacher.school
+    ).select_related('user', 'class_level').order_by('user__first_name')
+    
+    students_data = []
+    for student in students:
+        students_data.append({
+            'id': student.id,
+            'full_name': student.user.get_full_name(),
+            'admission_number': getattr(student, 'admission_number', ''),
+            'class_name': student.class_level.name,
+        })
+    
+    return JsonResponse({
+        'students': students_data,
+        'total_students': len(students_data),
+        'classes': [cls.name for cls in classes]
+    })
+
+
+@login_required
+def save_spreadsheet_results(request):
+    """Save spreadsheet results to database"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            teacher = request.user.teacher
+            
+            class_id = data.get('class_id')
+            subject_id = data.get('subject_id')
+            term = data.get('term')
+            session = data.get('session')
+            ca_categories = data.get('ca_categories', [])
+            results = data.get('results', [])
+            
+            print(f"=== SAVING SPREADSHEET RESULTS ===")
+            print(f"Class: {class_id}, Subject: {subject_id}, Term: {term}")
+            print(f"CA Categories: {len(ca_categories)}")
+            print(f"Results to save: {len(results)}")
+            
+            subject = get_object_or_404(Subject, id=subject_id)
+            class_level = get_object_or_404(ClassLevel, id=class_id)
+            
+            # Validate that teacher teaches this subject in this class
+            if not ClassSubject.objects.filter(
+                class_level=class_level,
+                subject=subject,
+                teacher=teacher
+            ).exists():
+                return JsonResponse({
+                    'success': False,
+                    'error': 'You do not teach this subject in the selected class'
+                })
+            
+            saved_count = 0
+            errors = []
+            
+            for result_data in results:
+                student_id = result_data.get('student_id')
+                ca_scores = result_data.get('ca_scores', [])
+                comment = result_data.get('comment', '')
+                total_score = result_data.get('total_score', 0)
+                position = result_data.get('position', '')
+                
+                try:
+                    student = get_object_or_404(Student, id=student_id, class_level=class_level)
+                    
+                    # Save individual CA scores as Result objects
+                    for ca_score in ca_scores:
+                        ca_name = ca_score.get('ca_name')
+                        score = ca_score.get('score', 0)
+                        max_score = ca_score.get('max_score', 0)
+                        
+                        # Create a unique exam type for this CA
+                        exam_type = f"term{term}_{ca_name.lower().replace(' ', '_')}"
+                        
+                        # Create or update result
+                        result, created = Result.objects.update_or_create(
+                            student=student,
+                            subject=subject,
+                            exam_type=exam_type,
+                            recorded_by=teacher,
+                            defaults={
+                                'score': score,
+                                'max_score': max_score,
+                                'comment': comment,
+                                'date_taken': timezone.now().date(),
+                            }
+                        )
+                        saved_count += 1
+                        print(f"Saved {ca_name} for {student.user.get_full_name()}: {score}/{max_score}")
+                    
+                    # Save overall result
+                    overall_result, created = Result.objects.update_or_create(
+                        student=student,
+                        subject=subject,
+                        exam_type=f"term{term}_overall",
+                        recorded_by=teacher,
+                        defaults={
+                            'score': total_score,
+                            'max_score': 100,
+                            'comment': f"Position: {position}. {comment}",
+                            'date_taken': timezone.now().date(),
+                        }
+                    )
+                    saved_count += 1
+                    
+                except Exception as e:
+                    errors.append(f"Error saving student {student_id}: {str(e)}")
+                    print(f"Error saving student {student_id}: {str(e)}")
+            
+            print(f"Successfully saved {saved_count} results")
+            
+            if errors:
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Saved {saved_count} results with some errors',
+                    'saved_count': saved_count,
+                    'errors': errors[:5]  # Return first 5 errors
+                })
+            else:
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Successfully saved {saved_count} results',
+                    'saved_count': saved_count
+                })
+            
+        except Exception as e:
+            print(f"General error: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)

@@ -148,3 +148,6 @@ NIGERIAN_STATES = {
     'Abuja': ['Abuja Municipal', 'Bwari', 'Gwagwalada', 'Kuje', 'Kwali'],
     # Add other states...
 }
+
+PAYSTACK_PUBLIC_KEY = 'your_public_key'
+PAYSTACK_SECRET_KEY = 'your_secret_key'

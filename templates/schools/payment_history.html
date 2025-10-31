@@ -89,6 +89,9 @@
                     <a href="{% url 'schools:upgrade_subscription' %}" class="btn btn-primary w-100 mt-3">
                         Upgrade Subscription
                     </a>
+                    <a href="{% url 'schools:make_payment' %}" class="btn btn-success w-100 mt-2">
+                        <i class="fas fa-credit-card me-2"></i>Make Payment
+                    </a>
                     {% endif %}
                 </div>
             </div>
@@ -96,3 +99,5 @@
     </div>
 </div>
 {% endblock %}
+
+<script src="https://js.paystack.co/v1/inline.js"></script>

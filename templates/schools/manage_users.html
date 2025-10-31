@@ -42,7 +42,7 @@
                     {% for teacher in teachers %}
                     <a href="{% url 'schools:user_profile' 'teacher' teacher.id %}" class="text-decoration-none">
                         <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded hover-shadow">
-                            <div>
+                            <div class="flex-grow-1">
                                 <h6 class="mb-0 text-dark">{{ teacher.get_full_name }}</h6>
                                 <small class="text-muted">{{ teacher.email }}</small>
                                 <br>
@@ -54,10 +54,17 @@
                                         <span class="text-danger">No subjects assigned</span>
                                     {% endif %}
                                 </small>
+                            </a>
                             </div>
-                            <span class="badge bg-primary">Teacher</span>
+                            <div class="d-flex flex-column align-items-end gap-1">
+                                <span class="badge bg-primary">Teacher</span>
+                                <button class="btn btn-sm btn-outline-danger" 
+                                        onclick="confirmDelete('teacher', {{ teacher.id }}, '{{ teacher.get_full_name }}')">
+                                    Delete
+                                </button>
+                            </div>
                         </div>
-                    </a>
+                    
                     {% empty %}
                     <p class="text-muted">No teachers yet.</p>
                     {% endfor %}
@@ -75,17 +82,24 @@
                     {% for student in students %}
                     <a href="{% url 'schools:user_profile' 'student' student.id %}" class="text-decoration-none">
                         <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded hover-shadow">
-                            <div>
+                            <div class="flex-grow-1">
                                 <h6 class="mb-0 text-dark">{{ student.get_full_name }}</h6>
                                 <small class="text-muted">{{ student.email }}</small>
                                 {% if student.student.class_level %}
                                 <br>
                                 <small class="text-muted">Class: {{ student.student.class_level.name }}</small>
                                 {% endif %}
+                                </a>
                             </div>
-                            <span class="badge bg-success">Student</span>
+                            <div class="d-flex flex-column align-items-end gap-1">
+                                <span class="badge bg-success">Student</span>
+                                <button class="btn btn-sm btn-outline-danger"
+                                        onclick="confirmDelete('student', {{ student.id }}, '{{ student.get_full_name }}')">
+                                    Delete
+                                </button>
+                            </div>
                         </div>
-                    </a>
+                    
                     {% empty %}
                     <p class="text-muted">No students yet.</p>
                     {% endfor %}
@@ -103,13 +117,20 @@
                     {% for admin in junior_admins %}
                     <a href="{% url 'schools:user_profile' 'admin' admin.user.id %}" class="text-decoration-none">
                         <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded hover-shadow">
-                            <div>
+                            <div class="flex-grow-1">
                                 <h6 class="mb-0 text-dark">{{ admin.user.get_full_name }}</h6>
                                 <small class="text-muted">{{ admin.user.email }}</small>
+                                </a>
                             </div>
-                            <span class="badge bg-warning">Admin</span>
+                            <div class="d-flex flex-column align-items-end gap-1">
+                                <span class="badge bg-warning">Admin</span>
+                                <button class="btn btn-sm btn-outline-danger"
+                                        onclick="confirmDelete('admin', {{ admin.user.id }}, '{{ admin.user.get_full_name }}')">
+                                    Delete
+                                </button>
+                            </div>
                         </div>
-                    </a>
+                    
                     {% empty %}
                     <p class="text-muted">No junior admins yet.</p>
                     {% endfor %}
@@ -126,4 +147,46 @@
     transition: all 0.2s ease-in-out;
 }
 </style>
+
+
+<script>
+function confirmDelete(userType, userId, userName) {
+    if (confirm(`Are you sure you want to delete ${userName}? This action cannot be undone and will remove all associated data.`)) {
+        deleteUser(userType, userId, userName);
+    }
+}
+
+function deleteUser(userType, userId, userName) {
+    fetch(`/schools/delete-user/${userType}/${userId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({})  // Add empty body for DELETE request
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (response.ok) {
+            return response.json();
+        } else {
+            throw new Error('Network response was not ok');
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            alert(`${userName} deleted successfully!`);
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error deleting user: ' + error.message);
+    });
+}
+
+</script>
+
 {% endblock %}

@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+
+{% block title %}Make Payment - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-credit-card me-2"></i>Make Payment
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <!-- Subscription Info -->
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-info-circle me-2"></i>Current Subscription
+                        </h5>
+                        <p class="mb-1"><strong>Plan:</strong> {{ school.get_subscription_type_display }}</p>
+                        <p class="mb-1"><strong>Status:</strong> 
+                            <span class="badge bg-{% if subscription.is_active %}success{% else %}danger{% endif %}">
+                                {{ subscription.is_active|yesno:"Active,Inactive" }}
+                            </span>
+                        </p>
+                        <p class="mb-1"><strong>Expires:</strong> {{ subscription.end_date|date:"M d, Y" }}</p>
+                        <p class="mb-0"><strong>Days Remaining:</strong> 
+                            <span class="{% if subscription.days_remaining < 30 %}text-danger fw-bold{% else %}text-success{% endif %}">
+                                {{ subscription.days_remaining }}
+                            </span>
+                        </p>
+                    </div>
+
+                    <!-- Payment Options -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card card-hover text-center h-100">
+                                <div class="card-body">
+                                    <i class="fas fa-crown fa-3x text-warning mb-3"></i>
+                                    <h5>1 Year Subscription</h5>
+                                    <h3 class="text-primary">₦10,000</h3>
+                                    <p class="text-muted">Extends your subscription by 365 days</p>
+                                    <button onclick="makePayment(10000, '1 Year Subscription')" class="btn btn-warning w-100">
+                                        Pay ₦10,000
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card card-hover text-center h-100">
+                                <div class="card-body">
+                                    <i class="fas fa-gem fa-3x text-success mb-3"></i>
+                                    <h5>2 Years Subscription</h5>
+                                    <h3 class="text-primary">₦18,000</h3>
+                                    <p class="text-muted">Extends your subscription by 730 days</p>
+                                    <button onclick="makePayment(18000, '2 Years Subscription')" class="btn btn-success w-100">
+                                        Pay ₦18,000
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Amount -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-sliders me-2"></i>Custom Amount
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row align-items-end">
+                                <div class="col-md-6">
+                                    <label class="form-label">Amount (NGN)</label>
+                                    <input type="number" id="customAmount" class="form-control" min="1000" max="100000" value="10000">
+                                </div>
+                                <div class="col-md-6">
+                                    <button onclick="makeCustomPayment()" class="btn btn-primary w-100">
+                                        Pay Custom Amount
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Methods -->
+                    <div class="mt-4">
+                        <h6 class="mb-3">Supported Payment Methods</h6>
+                        <div class="d-flex gap-3">
+                            <img src="https://paystack.com/assets/website/images/logo/paystack-logo.svg" alt="Paystack" height="30">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/a/a4/Mastercard_2019_logo.svg" alt="Mastercard" height="30">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" alt="Visa" height="30">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c9/Bank_transfer_icon.svg" alt="Bank Transfer" height="30">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Scripts -->
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script>
+function makePayment(amount, description) {
+    processPayment(amount, description);
+}
+
+function makeCustomPayment() {
+    const amount = document.getElementById('customAmount').value;
+    if (!amount || amount < 1000) {
+        alert('Please enter a valid amount (minimum ₦1000)');
+        return;
+    }
+    processPayment(amount, 'Custom Subscription Payment');
+}
+
+function processPayment(amount, description) {
+    const email = '{{ school.email }}';
+    
+    const handler = PaystackPop.setup({
+        key: '{{ PAYSTACK_PUBLIC_KEY }}',
+        email: email,
+        amount: amount * 100, // Convert to kobo
+        currency: 'NGN',
+        ref: 'SUB_{{ school.id }}_' + Date.now(),
+        metadata: {
+            custom_fields: [
+                {
+                    display_name: "School",
+                    variable_name: "school",
+                    value: "{{ school.name }}"
+                },
+                {
+                    display_name: "Description",
+                    variable_name: "description", 
+                    value: description
+                }
+            ]
+        },
+        callback: function(response) {
+            // Verify payment on server
+            verifyPayment(response.reference, amount, description);
+        },
+        onClose: function() {
+            alert('Payment window closed. You can try again anytime.');
+        }
+    });
+    handler.openIframe();
+}
+
+function verifyPayment(reference, amount, description) {
+    // Show loading state
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(btn => btn.disabled = true);
+    
+    fetch('{% url "schools:verify_payment" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            reference: reference,
+            amount: amount,
+            description: description
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ Payment successful! Your subscription has been extended.');
+            window.location.href = '{% url "schools:payment_history" %}';
+        } else {
+            alert('❌ Payment verification failed: ' + data.error);
+            buttons.forEach(btn => btn.disabled = false);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('❌ Network error. Please check your connection and try again.');
+        buttons.forEach(btn => btn.disabled = false);
+    });
+}
+</script>
+
+<style>
+.card-hover {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid #e9ecef;
+}
+.card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}

@@ -62,6 +62,7 @@ class Assignment(models.Model):
     due_date = models.DateTimeField()
     max_score = models.IntegerField(default=100)
     created_at = models.DateTimeField(auto_now_add=True)
+    submission_date = models.DateTimeField(null=True, blank=True)
     assignment_file = models.FileField(upload_to='assignments/', blank=True, null=True, validators=[FileExtensionValidator(allowed_extensions=['pdf', 'doc', 'docx', 'txt', 'zip'])])
     
     def __str__(self):
@@ -100,7 +101,8 @@ class Result(models.Model):
     max_score = models.IntegerField(default=100)
     date_taken = models.DateField()
     recorded_by = models.ForeignKey('users.Teacher', on_delete=models.CASCADE)  # String reference
-    
+    comment = models.TextField(blank=True, null=True)
+
     class Meta:
         unique_together = ['student', 'subject', 'exam_type', 'date_taken']
     

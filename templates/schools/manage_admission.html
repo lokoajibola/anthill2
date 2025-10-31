@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Admission - {{ school.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4 class="mb-0">Manage Admission Information</h4>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">Admission Requirements</label>
+                    <textarea name="requirements" class="form-control" rows="4" required>{{ admission_info.requirements|default:'' }}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Admission Process</label>
+                    <textarea name="process" class="form-control" rows="4" required>{{ admission_info.process|default:'' }}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Fee Structure</label>
+                    <textarea name="fees" class="form-control" rows="3" required>{{ admission_info.fees|default:'' }}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Contact Information</label>
+                    <textarea name="contact_info" class="form-control" rows="2" required>{{ admission_info.contact_info|default:'' }}</textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Admission Info</button>
+                <a href="{% url 'schools:edit_homepage' %}" class="btn btn-secondary">Back to Edit Homepage</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
